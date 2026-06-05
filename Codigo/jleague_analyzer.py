@@ -27,12 +27,14 @@ CSV_FILE     = "JPN.csv"
 PLAYERS_CSV  = "J1_League_Player_Stats_2022_2025.csv"
 OUTPUT_HTML  = os.path.join(BASE, "jleague_report.html")
 
-XI            = 0.00325   # time decay estándar Dixon-Coles
-FORM_MATCHES  = 6         # partidos recientes con peso extra
-FORM_BOOST    = 2.5       # multiplicador de peso para forma reciente
-VALUE_THRESH  = 0.04      # umbral value bet: 4%
-DRAW_ENABLED  = False     # ⛔ empates desactivados — ROI histórico -46%, no fiable
-FORM_MIN_PTS  = 1.2       # pts/partido mínimos del equipo favorecido para activar value bet
+VALUE_THRESH      = 0.04   # umbral base
+VALUE_THRESH_HOME = 0.08   # local más estricto (ROI histórico -9.2% con 4%)
+VALUE_THRESH_AWAY = 0.04   # visitante estándar (ROI histórico +12.5%)
+DRAW_ENABLED      = False  # ⛔ empates desactivados — ROI histórico -46%
+FORM_MATCHES      = 6
+FORM_BOOST        = 2.5
+FORM_MIN_PTS_HOME = 1.5    # forma mínima para locales
+FORM_MIN_PTS_AWAY = 1.2    # forma mínima para visitantes
 N_SIM         = 100_000   # simulaciones Monte Carlo
 
 
@@ -501,16 +503,19 @@ def calc_value(pred, odds, form_home=None, form_away=None, threshold=VALUE_THRES
             }
             continue
 
-        # ── Filtro 2: forma reciente del equipo favorecido ──
-        form_pts = form_home if outcome == 'home' else form_away
-        form_ok  = True
-        form_warn = None
-        if value > threshold and form_pts is not None:
-            if form_pts < FORM_MIN_PTS:
-                form_ok   = False
-                form_warn = f'⚠ Forma insuficiente: {form_pts} pts/j (mín {FORM_MIN_PTS})'
+        # ── Filtro 2: umbral y forma diferenciados por mercado ──
+        thresh     = VALUE_THRESH_HOME if outcome == 'home' else VALUE_THRESH_AWAY
+        form_min   = FORM_MIN_PTS_HOME if outcome == 'home' else FORM_MIN_PTS_AWAY
+        form_pts   = form_home if outcome == 'home' else form_away
 
-        has_value    = value > threshold and form_ok
+        form_ok    = True
+        form_warn  = None
+        if value > thresh and form_pts is not None:
+            if form_pts < form_min:
+                form_ok   = False
+                form_warn = f'⚠ Forma baja: {form_pts} pts/j (mín {form_min})'
+
+        has_value    = value > thresh and form_ok
         strong_value = has_value and edge_rel > 0.08
 
         res[outcome] = {

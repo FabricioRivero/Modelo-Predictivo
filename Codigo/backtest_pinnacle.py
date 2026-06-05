@@ -38,11 +38,13 @@ TEST_FROM    = 2023    # testea desde este año
 XI           = 0.00325 # time decay estándar Dixon-Coles (0.00325 = mejor calibrado)
 MIN_TRAIN    = 500     # mínimo partidos para entrenar
 N_SIM        = 50_000  # simulaciones MC
-VALUE_THRESH = 0.04    # umbral value bet: 4% (equilibrio ruido/señal)
-DRAW_ENABLED = False   # ⛔ empates desactivados — ROI histórico -46%, no fiable
-FORM_MATCHES = 6       # partidos recientes para filtro de forma
-# Filtro de forma: solo apostar si el equipo favorecido tiene forma >= este umbral
-FORM_MIN_PTS = 1.2     # pts/partido mínimos en los últimos 6 partidos
+VALUE_THRESH      = 0.04   # umbral value bet base: 4%
+VALUE_THRESH_HOME = 0.08   # umbral más alto para locales (ROI histórico -9.2%)
+VALUE_THRESH_AWAY = 0.04   # umbral visitante (ROI histórico +12.5%)
+DRAW_ENABLED      = False  # ⛔ empates desactivados — ROI histórico -46%
+FORM_MATCHES      = 6      # partidos recientes para filtro de forma
+FORM_MIN_PTS_HOME = 1.5    # forma mínima local (más estricto por ROI negativo)
+FORM_MIN_PTS_AWAY = 1.2    # forma mínima visitante
 
 # ─────────────────────────────────────────────────────────────
 # BLOQUE 1: CARGA DE DATOS
@@ -269,21 +271,21 @@ def run_backtest(df):
             raw_draw = pred['p_draw'] - (1/ps_d)
             raw_away = pred['p_away'] - (1/ps_a)
 
-            # Filtro 1: empates desactivados (ROI histórico -46%)
+            # Filtro 1: empates desactivados
             if DRAW_ENABLED:
                 value_draw = raw_draw
 
-            # Filtro 2: local — solo si el equipo local tiene buena forma
-            if raw_home > VALUE_THRESH:
-                if form_home is None or form_home >= FORM_MIN_PTS:
+            # Filtro 2: local — umbral más alto + forma más estricta
+            if raw_home > VALUE_THRESH_HOME:
+                if form_home is None or form_home >= FORM_MIN_PTS_HOME:
                     value_home = raw_home
-                # si la forma es mala, descartamos la señal
+                # forma insuficiente → señal descartada (se guarda como NaN)
             else:
-                value_home = raw_home  # guardamos el valor aunque sea negativo (para análisis)
+                value_home = raw_home  # valor negativo/bajo guardado para análisis
 
-            # Filtro 2: visitante — forma del visitante debe ser buena
-            if raw_away > VALUE_THRESH:
-                if form_away is None or form_away >= FORM_MIN_PTS:
+            # Filtro 3: visitante — umbral estándar + forma estándar
+            if raw_away > VALUE_THRESH_AWAY:
+                if form_away is None or form_away >= FORM_MIN_PTS_AWAY:
                     value_away = raw_away
             else:
                 value_away = raw_away
@@ -352,13 +354,13 @@ def compute_metrics(res):
 
     m['n_with_pinnacle'] = len(rp)
 
-    for outcome, prob_col, odd_col, result_val in [
-        ('home', 'p_home', 'ps_home', 'H'),
-        ('draw', 'p_draw', 'ps_draw', 'D'),
-        ('away', 'p_away', 'ps_away', 'A'),
+    for outcome, prob_col, odd_col, result_val, thresh in [
+        ('home', 'p_home', 'ps_home', 'H', VALUE_THRESH_HOME),
+        ('draw', 'p_draw', 'ps_draw', 'D', VALUE_THRESH),
+        ('away', 'p_away', 'ps_away', 'A', VALUE_THRESH_AWAY),
     ]:
         val_col = f'value_{outcome}'
-        vb = rp[rp[val_col] > VALUE_THRESH].copy()
+        vb = rp[rp[val_col] > thresh].copy()
         if len(vb) == 0:
             m[f'n_vb_{outcome}']  = 0
             m[f'roi_{outcome}']   = np.nan
@@ -407,9 +409,11 @@ def compute_metrics(res):
     for yr in sorted(rp['year'].unique()):
         ydf = rp[rp['year']==yr]
         yr_roi = []
-        for o, rv, oc in [('home','H','ps_home'),('draw','D','ps_draw'),('away','A','ps_away')]:
+        for o, rv, oc, th in [('home','H','ps_home',VALUE_THRESH_HOME),
+                               ('draw','D','ps_draw',VALUE_THRESH),
+                               ('away','A','ps_away',VALUE_THRESH_AWAY)]:
             vc = f'value_{o}'
-            vb = ydf[ydf[vc] > VALUE_THRESH]
+            vb = ydf[ydf[vc] > th]
             if len(vb) == 0: continue
             won = vb['result'] == rv
             pnl = np.where(won, vb[oc]-1, -1)
@@ -701,9 +705,9 @@ if __name__ == '__main__':
     print(f"   Entrenamiento inicial: hasta {TRAIN_UNTIL}")
     print(f"   Período de test:       {TEST_FROM} en adelante")
     print(f"   Re-entrena: 1x por mes | Simulaciones MC: {N_SIM:,}")
-    print(f"   Umbral value bet: >{VALUE_THRESH*100:.0f}%")
+    print(f"   Umbral value bet: LOCAL >{VALUE_THRESH_HOME*100:.0f}%  VISITANTE >{VALUE_THRESH_AWAY*100:.0f}%")
     print(f"   Empates: {'activados' if DRAW_ENABLED else '⛔ desactivados'}")
-    print(f"   Filtro forma: equipo favorecido >= {FORM_MIN_PTS} pts/partido\n")
+    print(f"   Filtro forma: local >= {FORM_MIN_PTS_HOME} pts/j  visitante >= {FORM_MIN_PTS_AWAY} pts/j\n")
 
     res = run_backtest(df)
 
