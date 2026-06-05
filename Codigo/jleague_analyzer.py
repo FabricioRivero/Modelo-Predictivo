@@ -27,10 +27,12 @@ CSV_FILE     = "JPN.csv"
 PLAYERS_CSV  = "J1_League_Player_Stats_2022_2025.csv"
 OUTPUT_HTML  = os.path.join(BASE, "jleague_report.html")
 
-XI            = 0.006     # time decay — más peso a datos recientes (2024-2025)
+XI            = 0.00325   # time decay estándar Dixon-Coles
 FORM_MATCHES  = 6         # partidos recientes con peso extra
 FORM_BOOST    = 2.5       # multiplicador de peso para forma reciente
-VALUE_THRESH  = 0.06      # umbral value bet subido a 6% — menos señales, más precisas
+VALUE_THRESH  = 0.04      # umbral value bet: 4%
+DRAW_ENABLED  = False     # ⛔ empates desactivados — ROI histórico -46%, no fiable
+FORM_MIN_PTS  = 1.2       # pts/partido mínimos del equipo favorecido para activar value bet
 N_SIM         = 100_000   # simulaciones Monte Carlo
 
 
@@ -466,30 +468,61 @@ def fetch_fixtures(api_key, hours_ahead=72):
 
 
 # ══════════════════════════════════════════════════════════════
-# BLOQUE 9 — CÁLCULO DE VALUE BET
+# BLOQUE 9 — CÁLCULO DE VALUE BET (con filtros)
 # ══════════════════════════════════════════════════════════════
-def calc_value(pred, odds, threshold=VALUE_THRESH):
+def calc_value(pred, odds, form_home=None, form_away=None, threshold=VALUE_THRESH):
+    """
+    Calcula value bets aplicando dos filtros:
+      1. Empates desactivados (DRAW_ENABLED=False) — ROI histórico -46%
+      2. Forma reciente: solo activar value si el equipo favorecido
+         tiene >= FORM_MIN_PTS pts/partido en los últimos 6 partidos
+    """
     res = {}
     for outcome, prob_key, odd in [
         ('home', 'p_home', odds.get('home')),
         ('draw', 'p_draw', odds.get('draw')),
         ('away', 'p_away', odds.get('away')),
     ]:
-        if odd and odd > 1.0:
-            implied = 1.0 / odd
-            model_p = pred[prob_key]
-            value   = model_p - implied
-            # Confianza: qué tan grande es la ventaja relativa
-            edge_rel = value / implied if implied > 0 else 0
+        if not (odd and odd > 1.0):
+            continue
+
+        implied  = 1.0 / odd
+        model_p  = pred[prob_key]
+        value    = model_p - implied
+        edge_rel = value / implied if implied > 0 else 0
+
+        # ── Filtro 1: empates desactivados ──
+        if outcome == 'draw' and not DRAW_ENABLED:
             res[outcome] = {
-                'prob_model':   model_p,
-                'prob_implied': implied,
-                'odd':          odd,
-                'value':        value,
-                'edge_rel':     edge_rel,        # ventaja relativa (>0.05 = sólida)
-                'has_value':    value > threshold,
-                'strong_value': value > threshold and edge_rel > 0.08,  # value sólido
+                'prob_model': model_p, 'prob_implied': implied,
+                'odd': odd, 'value': value, 'edge_rel': edge_rel,
+                'has_value': False, 'strong_value': False,
+                'blocked_reason': '⛔ Empates desactivados (ROI histórico -46%)',
             }
+            continue
+
+        # ── Filtro 2: forma reciente del equipo favorecido ──
+        form_pts = form_home if outcome == 'home' else form_away
+        form_ok  = True
+        form_warn = None
+        if value > threshold and form_pts is not None:
+            if form_pts < FORM_MIN_PTS:
+                form_ok   = False
+                form_warn = f'⚠ Forma insuficiente: {form_pts} pts/j (mín {FORM_MIN_PTS})'
+
+        has_value    = value > threshold and form_ok
+        strong_value = has_value and edge_rel > 0.08
+
+        res[outcome] = {
+            'prob_model':    model_p,
+            'prob_implied':  implied,
+            'odd':           odd,
+            'value':         value,
+            'edge_rel':      edge_rel,
+            'has_value':     has_value,
+            'strong_value':  strong_value,
+            'blocked_reason': form_warn,   # None si no hay bloqueo
+        }
     return res
 
 
@@ -515,13 +548,22 @@ def generate_html_report(analyses, output_path):
         pct  = f"{v['prob_model']*100:.1f}%"
         odd  = f"{v['odd']:.2f}"
         vval = v['value']
+        tip  = f"+{vval*100:.1f}%" if vval > 0 else f"{vval*100:.1f}%"
+
+        # Empate desactivado
+        if outcome == 'draw' and not DRAW_ENABLED:
+            return f'<span class="badge badge-blocked">⛔ X: {pct} @ {odd} <em>(empates off)</em></span>'
+
+        # Bloqueado por forma
+        if v.get('blocked_reason') and not v['has_value']:
+            return f'<span class="badge badge-blocked">⚠ {label}: {pct} @ {odd} <em>({tip} — forma baja)</em></span>'
+
         if v['strong_value']:
             cls, icon = 'value-strong', '🔥'
         elif v['has_value']:
             cls, icon = 'value-yes', '🟢'
         else:
             cls, icon = 'value-no', '🔴'
-        tip = f"+{vval*100:.1f}%" if vval > 0 else f"{vval*100:.1f}%"
         return f'<span class="badge {cls}">{icon} {label}: {pct} @ {odd} <em>({tip})</em></span>'
 
     cards = ""
@@ -627,6 +669,7 @@ def generate_html_report(analyses, output_path):
 
     n_value  = sum(1 for a in analyses for v in a['value'].values() if v.get('has_value'))
     n_strong = sum(1 for a in analyses for v in a['value'].values() if v.get('strong_value'))
+    n_filtered = sum(1 for a in analyses for v in a['value'].values() if v.get('blocked_reason') and not v.get('has_value'))
     now_str  = datetime.now().strftime('%d/%m/%Y %H:%M')
 
     html = f"""<!DOCTYPE html>
@@ -662,6 +705,7 @@ header p{{color:var(--mut);margin-top:.5rem;font-size:.82rem;}}
 .value-yes{{background:rgba(72,187,120,.12);border:1px solid var(--grn);color:var(--grn);}}
 .value-no{{background:rgba(252,129,129,.08);border:1px solid var(--red);color:var(--red);}}
 .no-data{{background:rgba(74,85,104,.15);border:1px solid var(--mut);color:var(--mut);}}
+.badge-blocked{{background:rgba(74,85,104,.12);border:1px solid #2d3748;color:#4a5568;}}
 .badge em{{font-style:normal;opacity:.75;}}
 .stitle{{font-size:.68rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--mut);margin:1rem 0 .5rem;}}
 .scores{{display:flex;flex-direction:column;gap:.3rem;}}
@@ -691,11 +735,14 @@ footer{{text-align:center;padding:2rem;color:var(--mut);font-size:.72rem;border-
     <div class="stat"><div class="sl">Partidos</div><div class="sv">{len(analyses)}</div></div>
     <div class="stat"><div class="sl">Value bets</div><div class="sv">{n_value}</div></div>
     <div class="stat"><div class="sl">🔥 Value sólido</div><div class="sv strong">{n_strong}</div></div>
+    <div class="stat"><div class="sl">⛔ Filtradas</div><div class="sv" style="color:var(--mut)">{n_filtered}</div></div>
     <div class="stat"><div class="sl">Generado</div><div class="sv">{now_str}</div></div>
   </div>
   <div class="legend">
-    <span>🔥 Value sólido: &gt;3% value Y &gt;8% edge relativo</span>
-    <span>🟢 Value detectado: &gt;3% de ventaja vs cuota</span>
+    <span>🔥 Value sólido: &gt;4% value Y &gt;8% edge relativo + forma OK</span>
+    <span>🟢 Value detectado: &gt;4% ventaja + forma OK</span>
+    <span>⚠ Filtrado por forma: value existe pero equipo con mala racha (&lt;1.2 pts/j)</span>
+    <span>⛔ Empates desactivados (ROI histórico -46%)</span>
     <span>🔴 Sin value: la casa tiene ventaja</span>
   </div>
   {"".join(['<div class="no-fix">No hay partidos en las próximas 72h con cuotas disponibles.</div>']) if not analyses else cards}
@@ -778,9 +825,11 @@ if __name__ == "__main__":
     print()
     for fix in fixtures:
         pred   = predict_match(fix['home_csv'], fix['away_csv'], params)
-        value  = calc_value(pred, fix['odds'])
         f_home = get_team_form(df, fix['home_csv'], FORM_MATCHES)
         f_away = get_team_form(df, fix['away_csv'], FORM_MATCHES)
+        value  = calc_value(pred, fix['odds'],
+                            form_home=f_home.get('pts_pg'),
+                            form_away=f_away.get('pts_pg'))
 
         analyses.append({
             'fixture':   fix,
@@ -802,6 +851,8 @@ if __name__ == "__main__":
                 print(f"    🔥 VALUE SÓLIDO: {out.upper()}  value={v['value']*100:+.1f}%  edge_rel={v['edge_rel']*100:+.1f}%  odd={v['odd']}")
             elif v.get('has_value'):
                 print(f"    ✅ VALUE BET: {out.upper()}  value={v['value']*100:+.1f}%  odd={v['odd']}")
+            elif v.get('blocked_reason'):
+                print(f"    ⛔ FILTRADO: {out.upper()}  value={v['value']*100:+.1f}% — {v['blocked_reason']}")
 
     # ── 6. Reporte HTML ───────────────────────────────────
     print("\n⏳ Generando reporte HTML...")

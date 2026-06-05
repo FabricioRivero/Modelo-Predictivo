@@ -33,12 +33,16 @@ OUTPUT_HTML = os.path.join(BASE, "backtest_report.html")
 OUTPUT_CSV  = os.path.join(BASE, "backtest_results.csv")
 
 # Años de entrenamiento inicial y test
-TRAIN_UNTIL = 2022   # entrena con datos hasta este año (inclusive)
-TEST_FROM   = 2023   # testea desde este año
-XI          = 0.006    # time decay más agresivo — más peso a datos recientes
-MIN_TRAIN   = 500    # mínimo partidos para entrenar
-N_SIM       = 50_000 # simulaciones MC (50k para velocidad en backtest)
-VALUE_THRESH = 0.06  # umbral de value bet subido a 6%
+TRAIN_UNTIL  = 2022    # entrena con datos hasta este año (inclusive)
+TEST_FROM    = 2023    # testea desde este año
+XI           = 0.00325 # time decay estándar Dixon-Coles (0.00325 = mejor calibrado)
+MIN_TRAIN    = 500     # mínimo partidos para entrenar
+N_SIM        = 50_000  # simulaciones MC
+VALUE_THRESH = 0.04    # umbral value bet: 4% (equilibrio ruido/señal)
+DRAW_ENABLED = False   # ⛔ empates desactivados — ROI histórico -46%, no fiable
+FORM_MATCHES = 6       # partidos recientes para filtro de forma
+# Filtro de forma: solo apostar si el equipo favorecido tiene forma >= este umbral
+FORM_MIN_PTS = 1.2     # pts/partido mínimos en los últimos 6 partidos
 
 # ─────────────────────────────────────────────────────────────
 # BLOQUE 1: CARGA DE DATOS
@@ -150,6 +154,28 @@ def fit_dixon_coles(df_train, xi=XI):
         'success': res.success
     }
 
+# ─────────────────────────────────────────────────────────────
+# BLOQUE 2b: FORMA RECIENTE
+# ─────────────────────────────────────────────────────────────
+def get_form_pts(df_history, team, n=FORM_MATCHES):
+    """
+    Devuelve pts/partido en los últimos N partidos de 'team'
+    usando solo partidos ANTERIORES a la fecha actual (df_history).
+    """
+    mask = (df_history['home_team'] == team) | (df_history['away_team'] == team)
+    recent = df_history[mask].tail(n)
+    if len(recent) == 0:
+        return None  # equipo sin historial
+
+    pts = 0
+    for _, row in recent.iterrows():
+        is_home = row['home_team'] == team
+        gf = row['home_goals'] if is_home else row['away_goals']
+        ga = row['away_goals'] if is_home else row['home_goals']
+        if   gf > ga: pts += 3
+        elif gf == ga: pts += 1
+    return round(pts / len(recent), 2)
+
 def predict_match(home, away, params, n_sim=N_SIM):
     atk   = params['attack']
     dfc   = params['defence']
@@ -231,12 +257,36 @@ def run_backtest(df):
         ps_a = row['ps_away']
         has_pinnacle = not (pd.isna(ps_h) or pd.isna(ps_d) or pd.isna(ps_a))
 
-        # Value vs Pinnacle
+        # Forma reciente de cada equipo (usando solo historial previo al partido)
+        train_data = df[df['match_date'] < match_date]
+        form_home = get_form_pts(train_data, row['home_team'])
+        form_away = get_form_pts(train_data, row['away_team'])
+
+        # Value vs Pinnacle con filtros
         value_home = value_draw = value_away = np.nan
         if has_pinnacle:
-            value_home = pred['p_home'] - (1/ps_h)
-            value_draw = pred['p_draw'] - (1/ps_d)
-            value_away = pred['p_away'] - (1/ps_a)
+            raw_home = pred['p_home'] - (1/ps_h)
+            raw_draw = pred['p_draw'] - (1/ps_d)
+            raw_away = pred['p_away'] - (1/ps_a)
+
+            # Filtro 1: empates desactivados (ROI histórico -46%)
+            if DRAW_ENABLED:
+                value_draw = raw_draw
+
+            # Filtro 2: local — solo si el equipo local tiene buena forma
+            if raw_home > VALUE_THRESH:
+                if form_home is None or form_home >= FORM_MIN_PTS:
+                    value_home = raw_home
+                # si la forma es mala, descartamos la señal
+            else:
+                value_home = raw_home  # guardamos el valor aunque sea negativo (para análisis)
+
+            # Filtro 2: visitante — forma del visitante debe ser buena
+            if raw_away > VALUE_THRESH:
+                if form_away is None or form_away >= FORM_MIN_PTS:
+                    value_away = raw_away
+            else:
+                value_away = raw_away
 
         # Brier Score (modelo)
         ind_h = 1 if actual == 'H' else 0
@@ -267,6 +317,8 @@ def run_backtest(df):
             'p_away':     round(pred['p_away'],4),
             'lam_h':      round(pred['lam_h'],3),
             'lam_a':      round(pred['lam_a'],3),
+            'form_home':  form_home,
+            'form_away':  form_away,
             'ps_home':    ps_h,
             'ps_draw':    ps_d,
             'ps_away':    ps_a,
@@ -649,7 +701,9 @@ if __name__ == '__main__':
     print(f"   Entrenamiento inicial: hasta {TRAIN_UNTIL}")
     print(f"   Período de test:       {TEST_FROM} en adelante")
     print(f"   Re-entrena: 1x por mes | Simulaciones MC: {N_SIM:,}")
-    print(f"   Umbral value bet: >{VALUE_THRESH*100:.0f}%\n")
+    print(f"   Umbral value bet: >{VALUE_THRESH*100:.0f}%")
+    print(f"   Empates: {'activados' if DRAW_ENABLED else '⛔ desactivados'}")
+    print(f"   Filtro forma: equipo favorecido >= {FORM_MIN_PTS} pts/partido\n")
 
     res = run_backtest(df)
 
