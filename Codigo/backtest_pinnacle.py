@@ -35,10 +35,10 @@ OUTPUT_CSV  = os.path.join(BASE, "backtest_results.csv")
 # Años de entrenamiento inicial y test
 TRAIN_UNTIL = 2022   # entrena con datos hasta este año (inclusive)
 TEST_FROM   = 2023   # testea desde este año
-XI          = 0.00325  # time decay
+XI          = 0.006    # time decay más agresivo — más peso a datos recientes
 MIN_TRAIN   = 500    # mínimo partidos para entrenar
 N_SIM       = 50_000 # simulaciones MC (50k para velocidad en backtest)
-VALUE_THRESH = 0.03  # umbral de value bet (3%)
+VALUE_THRESH = 0.06  # umbral de value bet subido a 6%
 
 # ─────────────────────────────────────────────────────────────
 # BLOQUE 1: CARGA DE DATOS

@@ -27,10 +27,10 @@ CSV_FILE     = "JPN.csv"
 PLAYERS_CSV  = "J1_League_Player_Stats_2022_2025.csv"
 OUTPUT_HTML  = os.path.join(BASE, "jleague_report.html")
 
-XI            = 0.00325   # time decay global
+XI            = 0.006     # time decay — más peso a datos recientes (2024-2025)
 FORM_MATCHES  = 6         # partidos recientes con peso extra
 FORM_BOOST    = 2.5       # multiplicador de peso para forma reciente
-VALUE_THRESH  = 0.03      # umbral value bet (3%)
+VALUE_THRESH  = 0.06      # umbral value bet subido a 6% — menos señales, más precisas
 N_SIM         = 100_000   # simulaciones Monte Carlo
 
 
