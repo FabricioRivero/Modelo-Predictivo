@@ -43,7 +43,38 @@ API_KEY_FOOTBALL = "f7de0f5bd4e48491c6e02aefa322d67a"  # API-Football  → convo
 # Parámetros del modelo
 XI              = 0.00180   # time decay más suave (selecciones juegan menos)
 TRAIN_FROM_YEAR = 2010      # solo usar datos desde 2010 (fútbol moderno)
-MIN_MATCHES     = 50        # mínimo partidos — solo selecciones activas (~60 equipos)
+MIN_MATCHES     = 10        # mínimo partidos (respaldo para equipos no en TEAM_WHITELIST)
+
+# Lista fija de selecciones a modelar (las que el usuario quiere cubrir)
+TEAM_WHITELIST = {
+    # Europa
+    'Albania', 'Germany', 'Andorra', 'Austria', 'Belarus', 'Belgium',
+    'Bosnia and Herzegovina', 'Bulgaria', 'Croatia', 'Czech Republic',
+    'Czechia', 'Denmark', 'England', 'Scotland', 'Northern Ireland',
+    'Finland', 'France', 'Georgia', 'Greece', 'Hungary', 'Iceland',
+    'Israel', 'Italy', 'Kosovo', 'Luxembourg', 'Moldova', 'Montenegro',
+    'Netherlands', 'North Macedonia', 'Norway', 'Poland', 'Portugal',
+    'Romania', 'Russia', 'Serbia', 'Slovakia', 'Slovenia', 'Spain',
+    'Sweden', 'Switzerland', 'Turkey', 'Ukraine', 'Wales',
+    # América
+    'Argentina', 'Bolivia', 'Brazil', 'Canada', 'Chile', 'Colombia',
+    'Costa Rica', 'Cuba', 'Curacao', 'Ecuador', 'El Salvador', 'Guatemala',
+    'Haiti', 'Honduras', 'Jamaica', 'Mexico', 'Nicaragua', 'Panama',
+    'Paraguay', 'Peru', 'Puerto Rico', 'United States', 'Uruguay',
+    'Venezuela', 'Bermuda', 'Aruba',
+    # África
+    'Algeria', 'Angola', 'Benin', 'Burkina Faso', 'Cameroon',
+    'Cape Verde', 'Congo DR', 'DR Congo', 'Ivory Coast', "Cote d'Ivoire",
+    "Côte d'Ivoire", 'Egypt', 'Gabon', 'Ghana', 'Guinea', 'Mali',
+    'Mauritania', 'Morocco', 'Niger', 'Nigeria', 'Senegal', 'South Africa',
+    'Tunisia', 'Uganda', 'Zambia',
+    # Asia / Oceanía
+    'Australia', 'Bahrain', 'China', 'China PR', 'Indonesia', 'Iran',
+    'Iraq', 'Japan', 'Jordan', 'Kuwait', 'Kyrgyzstan', 'New Zealand',
+    'Oman', 'Palestine', 'Qatar', 'Saudi Arabia', 'Singapore', 'South Korea',
+    'Korea Republic', 'Syria', 'Tajikistan', 'Thailand', 'UAE',
+    'United Arab Emirates', 'Uzbekistan', 'Vietnam',
+}
 N_SIM           = 100_000   # simulaciones Monte Carlo
 
 # Filtros value bet (calibrados para selecciones)
@@ -161,9 +192,11 @@ def load_results(base_path):
     # Filtrar desde TRAIN_FROM_YEAR
     df = df[df['year'] >= TRAIN_FROM_YEAR].copy()
 
-    # ── Solo selecciones con suficientes partidos (evita 306 equipos) ──
+    # ── Filtrar solo selecciones de la whitelist ──
+    # Si el equipo está en la whitelist, lo incluimos sin importar cuántos partidos tiene
+    # Si no está, aplicamos MIN_MATCHES como respaldo
     counts = pd.concat([df['home_team'], df['away_team']]).value_counts()
-    valid_teams = counts[counts >= MIN_MATCHES].index
+    valid_teams = set(TEAM_WHITELIST) | set(counts[counts >= MIN_MATCHES].index)
     df = df[df['home_team'].isin(valid_teams) & df['away_team'].isin(valid_teams)].copy()
     df = df.reset_index(drop=True)
     df = df.sort_values('match_date').reset_index(drop=True)
@@ -176,7 +209,7 @@ def load_results(base_path):
     df['weight']    = df['t_weight'] * df['td_weight']
 
     print(f"  ✓ {len(df):,} partidos cargados ({df['year'].min()}–{df['year'].max()})")
-    print(f"  ✓ {df['home_team'].nunique()} selecciones con ≥{MIN_MATCHES} partidos")
+    print(f"  ✓ {df['home_team'].nunique()} selecciones modeladas ({len(TEAM_WHITELIST)} en whitelist)")
     print(f"  ✓ Amistosos: {(df['tournament'].str.lower().str.contains('friendly')).sum():,} | "
           f"Oficiales: {(~df['tournament'].str.lower().str.contains('friendly')).sum():,}")
     return df
