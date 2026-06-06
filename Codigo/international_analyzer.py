@@ -37,7 +37,8 @@ RESULTS_CSV  = "results.csv"
 NAMES_CSV    = "former_names.csv"
 OUTPUT_HTML  = os.path.join(BASE, "international_report.html")
 
-API_KEY      = "07fed81a038a0eb0b8c6c4abedcdcd35"
+API_KEY_ODDS     = "07fed81a038a0eb0b8c6c4abedcdcd35"  # The Odds API → cuotas Pinnacle
+API_KEY_FOOTBALL = "f7de0f5bd4e48491c6e02aefa322d67a"  # API-Football  → convocados/lesionados
 
 # Parámetros del modelo
 XI              = 0.00180   # time decay más suave (selecciones juegan menos)
@@ -388,7 +389,282 @@ def get_team_form(df, team, n=FORM_MATCHES):
 
 
 # ══════════════════════════════════════════════════════════════
-# BLOQUE 6 — THE ODDS API (selecciones)
+# BLOQUE 6b — API-FOOTBALL: CONVOCADOS, LESIONADOS, HEAD2HEAD
+# ══════════════════════════════════════════════════════════════
+AF_BASE = "https://v3.football.api-sports.io"
+
+def _af_get(endpoint, params, api_key):
+    """Llamada genérica a API-Football. Devuelve lista 'response' o []."""
+    try:
+        import urllib.request, urllib.parse
+        qs  = urllib.parse.urlencode(params)
+        url = f"{AF_BASE}/{endpoint}?{qs}"
+        req = urllib.request.Request(url, headers={"x-apisports-key": api_key})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        return data.get("response", [])
+    except Exception as e:
+        print(f"  ⚠ API-Football [{endpoint}]: {e}")
+        return []
+
+def get_team_id(team_name, api_key):
+    """Busca el ID de una selección por nombre."""
+    res = _af_get("teams", {"name": team_name, "type": "National"}, api_key)
+    if not res:
+        # Intentar búsqueda más amplia
+        res = _af_get("teams", {"search": team_name[:6]}, api_key)
+    if res:
+        return res[0]["team"]["id"], res[0]["team"]["name"]
+    return None, None
+
+def get_injuries(team_id, api_key):
+    """Devuelve lista de lesionados/suspendidos del equipo."""
+    res = _af_get("injuries", {"team": team_id, "league": 1}, api_key)
+    players = []
+    for p in res:
+        players.append({
+            "name":   p["player"]["name"],
+            "reason": p["player"].get("reason", "Lesión"),
+            "status": p["player"].get("type", "?"),
+        })
+    return players
+
+def get_squad(team_id, api_key):
+    """Devuelve plantilla con posiciones."""
+    res = _af_get("players/squads", {"team": team_id}, api_key)
+    if not res:
+        return []
+    players = []
+    for p in res[0].get("players", []):
+        players.append({
+            "name":     p["name"],
+            "position": p["position"],
+            "age":      p.get("age", "?"),
+            "number":   p.get("number", "?"),
+        })
+    return players
+
+def get_head_to_head(team_id_home, team_id_away, api_key, last=5):
+    """Devuelve últimos N enfrentamientos entre los dos equipos."""
+    res = _af_get("fixtures/headtohead",
+                  {"h2h": f"{team_id_home}-{team_id_away}", "last": last},
+                  api_key)
+    matches = []
+    for m in res:
+        fix  = m.get("fixture", {})
+        tms  = m.get("teams", {})
+        goal = m.get("goals", {})
+        matches.append({
+            "date":       fix.get("date", "")[:10],
+            "home":       tms.get("home", {}).get("name", "?"),
+            "away":       tms.get("away", {}).get("name", "?"),
+            "home_goals": goal.get("home"),
+            "away_goals": goal.get("away"),
+        })
+    return matches
+
+def get_team_last_matches(team_id, api_key, last=5):
+    """Últimos N partidos del equipo."""
+    res = _af_get("fixtures", {"team": team_id, "last": last}, api_key)
+    matches = []
+    for m in res:
+        fix  = m.get("fixture", {})
+        tms  = m.get("teams", {})
+        goal = m.get("goals", {})
+        league = m.get("league", {})
+        is_home = tms.get("home", {}).get("id") == team_id
+        gf = goal.get("home") if is_home else goal.get("away")
+        ga = goal.get("away") if is_home else goal.get("home")
+        if gf is None or ga is None:
+            continue
+        result = "W" if gf > ga else ("L" if gf < ga else "D")
+        matches.append({
+            "date":       fix.get("date", "")[:10],
+            "opponent":   tms.get("away" if is_home else "home", {}).get("name", "?"),
+            "home_away":  "H" if is_home else "A",
+            "gf": gf, "ga": ga, "result": result,
+            "tournament": league.get("name", ""),
+        })
+    return matches
+
+def fetch_pre_match_info(home_name, away_name, api_key):
+    """
+    Recopila toda la info pre-partido de API-Football:
+    - IDs de ambos equipos
+    - Lesionados/suspendidos
+    - Plantilla (posiciones clave)
+    - Últimos 5 partidos de cada equipo
+    - Head to Head últimos 5
+    Devuelve un dict con todo.
+    """
+    print(f"  📡 Consultando API-Football: {home_name} vs {away_name}...")
+
+    # IDs
+    home_id, home_official = get_team_id(home_name, api_key)
+    away_id, away_official = get_team_id(away_name, api_key)
+
+    if not home_id or not away_id:
+        print(f"  ⚠ No se encontraron IDs para {home_name} o {away_name}")
+        return None
+
+    print(f"  ✓ {home_name} → ID {home_id} ({home_official})")
+    print(f"  ✓ {away_name} → ID {away_id} ({away_official})")
+
+    # Últimos partidos
+    home_last = get_team_last_matches(home_id, api_key, last=5)
+    away_last = get_team_last_matches(away_id, api_key, last=5)
+
+    # Head to Head
+    h2h = get_head_to_head(home_id, away_id, api_key, last=5)
+
+    # Lesionados
+    home_injuries = get_injuries(home_id, api_key)
+    away_injuries = get_injuries(away_id, api_key)
+
+    # Plantilla
+    home_squad = get_squad(home_id, api_key)
+    away_squad = get_squad(away_id, api_key)
+
+    return {
+        "home_id": home_id, "away_id": away_id,
+        "home_official": home_official, "away_official": away_official,
+        "home_last": home_last, "away_last": away_last,
+        "h2h": h2h,
+        "home_injuries": home_injuries, "away_injuries": away_injuries,
+        "home_squad": home_squad, "away_squad": away_squad,
+    }
+
+
+def pre_match_html(info, home_name, away_name):
+    """Genera el bloque HTML con la info pre-partido."""
+    if not info:
+        return '<div class="warn">⚠ No se pudo obtener info pre-partido de API-Football</div>'
+
+    # Lesionados
+    def injury_list(injuries):
+        if not injuries:
+            return '<span style="color:var(--grn)">Sin bajas confirmadas ✅</span>'
+        items = "".join(
+            f'<div style="font-size:.78rem;padding:.2rem 0;color:var(--red)">'
+            f'❌ {p["name"]} <span style="color:var(--mut)">({p["reason"]})</span></div>'
+            for p in injuries[:6]
+        )
+        return items
+
+    # Últimos partidos
+    def last_matches_html(matches):
+        if not matches:
+            return '<span style="color:var(--mut)">Sin datos</span>'
+        rows = ""
+        for m in matches:
+            col = {'W':'#48bb78','D':'#f6e05e','L':'#fc8181'}[m['result']]
+            rows += (f'<div style="display:flex;gap:.5rem;align-items:center;font-size:.75rem;padding:.2rem 0">'
+                     f'<span style="width:18px;height:18px;border-radius:50%;background:{col};'
+                     f'display:inline-flex;align-items:center;justify-content:center;'
+                     f'font-weight:700;font-size:.6rem;color:#000">{m["result"]}</span>'
+                     f'<span style="color:var(--mut)">{m["date"][:10]}</span>'
+                     f'<span style="color:var(--txt)">{m["home_away"]} vs {m["opponent"][:18]}</span>'
+                     f'<span style="color:var(--acc);font-family:IBM Plex Mono,monospace">'
+                     f'{m["gf"]}-{m["ga"]}</span>'
+                     f'<span style="color:var(--mut);font-size:.65rem">{m["tournament"][:20]}</span>'
+                     f'</div>')
+        return rows
+
+    # Head to Head
+    def h2h_html(matches):
+        if not matches:
+            return '<span style="color:var(--mut)">Sin enfrentamientos recientes</span>'
+        rows = ""
+        for m in matches:
+            hg = m['home_goals'] if m['home_goals'] is not None else '?'
+            ag = m['away_goals'] if m['away_goals'] is not None else '?'
+            rows += (f'<div style="font-size:.75rem;padding:.2rem 0;'
+                     f'display:flex;gap:.8rem;align-items:center">'
+                     f'<span style="color:var(--mut)">{m["date"]}</span>'
+                     f'<span style="color:var(--txt)">{m["home"]}</span>'
+                     f'<span style="font-family:IBM Plex Mono,monospace;color:var(--ylw)">{hg}-{ag}</span>'
+                     f'<span style="color:var(--txt)">{m["away"]}</span></div>')
+        return rows
+
+    # Plantilla highlights (solo porteros y delanteros)
+    def squad_highlights(squad):
+        if not squad:
+            return '<span style="color:var(--mut)">Sin datos de plantilla</span>'
+        by_pos = {}
+        for p in squad:
+            pos = p['position']
+            by_pos.setdefault(pos, []).append(p['name'])
+        html = ""
+        for pos, players in by_pos.items():
+            names = ", ".join(players[:4])
+            html += (f'<div style="font-size:.75rem;padding:.15rem 0">'
+                     f'<span style="color:var(--mut);width:90px;display:inline-block">{pos}:</span>'
+                     f'<span style="color:var(--txt)">{names}</span></div>')
+        return html if html else '<span style="color:var(--mut)">Sin datos</span>'
+
+    return f"""
+    <div style="border:1px solid var(--bord);border-radius:10px;padding:1rem;margin:.8rem 0;background:rgba(15,22,35,.5)">
+      <div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--acc);
+                  text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.8rem">
+        📡 Info Pre-Partido — API-Football
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <div style="font-size:.72rem;color:var(--ylw);margin-bottom:.4rem">
+            ⚕ Bajas — {home_name}
+          </div>
+          {injury_list(info['home_injuries'])}
+        </div>
+        <div>
+          <div style="font-size:.72rem;color:var(--ylw);margin-bottom:.4rem">
+            ⚕ Bajas — {away_name}
+          </div>
+          {injury_list(info['away_injuries'])}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <div style="font-size:.72rem;color:var(--acc);margin-bottom:.4rem">
+            🕐 Últimos 5 — {home_name}
+          </div>
+          {last_matches_html(info['home_last'])}
+        </div>
+        <div>
+          <div style="font-size:.72rem;color:#b794f4;margin-bottom:.4rem">
+            🕐 Últimos 5 — {away_name}
+          </div>
+          {last_matches_html(info['away_last'])}
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <div style="font-size:.72rem;color:var(--ylw);margin-bottom:.4rem">
+          🔄 Head to Head (últimos 5 enfrentamientos)
+        </div>
+        {h2h_html(info['h2h'])}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <div style="font-size:.72rem;color:var(--acc);margin-bottom:.4rem">
+            👥 Plantilla — {home_name}
+          </div>
+          {squad_highlights(info['home_squad'])}
+        </div>
+        <div>
+          <div style="font-size:.72rem;color:#b794f4;margin-bottom:.4rem">
+            👥 Plantilla — {away_name}
+          </div>
+          {squad_highlights(info['away_squad'])}
+        </div>
+      </div>
+    </div>"""
+
+
+# ══════════════════════════════════════════════════════════════
+# BLOQUE 7 — THE ODDS API (selecciones)
 # ══════════════════════════════════════════════════════════════
 INTL_SPORT_KEYS = [
     'soccer_fifa_world_cup',
@@ -585,11 +861,12 @@ def generate_html(analyses, output_path):
 
     cards = ""
     for a in analyses:
-        pred   = a['pred']
-        val    = a['value']
-        fix    = a['fixture']
-        f_home = a.get('form_home', {})
-        f_away = a.get('form_away', {})
+        pred     = a['pred']
+        val      = a['value']
+        fix      = a['fixture']
+        f_home   = a.get('form_home', {})
+        f_away   = a.get('form_away', {})
+        pre_info = a.get('pre_info')
 
         hora  = fix['commence'].astimezone().strftime('%H:%M')
         fecha = fix['commence'].astimezone().strftime('%d/%m/%Y')
@@ -691,6 +968,7 @@ def generate_html(analyses, output_path):
               {form_html(f_away)}
             </div>
           </div>
+          {pre_match_html(pre_info, fix['home_api'], fix['away_api']) if pre_info else ''}
           <div class="stitle">📊 Top marcadores</div>
           <div class="scores">{top_html}</div>
           <div class="stitle">🔥 Heatmap (local↓ / visitante→)</div>
@@ -823,7 +1101,7 @@ if __name__ == '__main__':
 
     # 4. Obtener partidos
     print(f"\n🔍 Buscando partidos internacionales próximos (96h)...")
-    fixtures = fetch_international_fixtures(API_KEY)
+    fixtures = fetch_international_fixtures(API_KEY_ODDS)
 
     if fixtures:
         print(f"   ✓ {len(fixtures)} partidos encontrados:")
@@ -852,7 +1130,7 @@ if __name__ == '__main__':
                 'tournament':  'Demo',
             })
 
-    # 5. Analizar
+    # 5. Analizar cada partido
     analyses = []
     print()
     for fix in fixtures:
@@ -864,12 +1142,18 @@ if __name__ == '__main__':
                             form_home=f_home.get('pts_pg'),
                             form_away=f_away.get('pts_pg'))
 
+        # Info pre-partido de API-Football
+        pre_info = None
+        if API_KEY_FOOTBALL:
+            pre_info = fetch_pre_match_info(fix['home_api'], fix['away_api'], API_KEY_FOOTBALL)
+
         analyses.append({
             'fixture':   fix,
             'pred':      pred,
             'value':     value,
             'form_home': f_home,
             'form_away': f_away,
+            'pre_info':  pre_info,
         })
 
         hora = fix['commence'].astimezone().strftime('%H:%M')
