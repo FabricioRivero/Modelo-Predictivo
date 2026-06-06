@@ -1188,17 +1188,78 @@ if __name__ == '__main__':
             ('Germany', 'England', False),
         ]
         fixtures = []
-        for i, (h, a, neu) in enumerate(demo_pairs):
-            fixtures.append({
-                'commence':    datetime.now(timezone.utc) + timedelta(hours=2+i*2),
-                'home_api': h, 'away_api': a,
-                'home_csv': h, 'away_csv': a,
-                'odds':     {'home': None, 'draw': None, 'away': None},
-                'odds_source': 'demo', 'margin': None,
-                'sport_key':   'demo',
-                'neutral':     neu,
-                'tournament':  'Demo',
-            })
+
+    # ── PARTIDOS MANUALES (amistosos que The Odds API no cubre) ──────────
+    # Edita esta lista con los partidos del día.
+    # Formato: (local, visitante, neutral, hora_h, hora_m, odds_1, odds_X, odds_2)
+    # Si no tienes cuotas escribe None.
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    MANUAL_FIXTURES = [
+        # SAB 6 junio — amistosos
+        ("Portugal",         "Chile",                    True,  20, 0,  None, None, None),
+        ("Romania",          "Wales",                    False, 19, 0,  None, None, None),
+        ("United States",    "Germany",                  True,  20, 30, None, None, None),
+        ("Panama",           "Bosnia and Herzegovina",   True,  21, 0,  None, None, None),
+        ("Switzerland",      "Australia",                True,  21, 0,  None, None, None),
+        ("Bolivia",          "Scotland",                 True,  22, 0,  None, None, None),
+        ("Qatar",            "El Salvador",              True,  22, 0,  None, None, None),
+        ("England",          "New Zealand",              True,  22, 0,  None, None, None),
+        ("Brazil",           "Egypt",                    True,  0,  0,  None, None, None),
+        ("Venezuela",        "Turkey",                   True,  0,  0,  None, None, None),
+        ("Argentina",        "Honduras",                 True,  2,  0,  None, None, None),
+        # DOM 7 junio
+        ("Denmark",          "Ukraine",                  False, 18, 30, None, None, None),
+        ("Kosovo",           "Andorra",                  False, 20, 0,  None, None, None),
+        ("Croatia",          "Slovenia",                 False, 20, 45, None, None, None),
+        ("Greece",           "Italy",                    False, 21, 0,  None, None, None),
+        ("Morocco",          "Norway",                   True,  21, 0,  None, None, None),
+        ("Ecuador",          "Guatemala",                True,  22, 0,  None, None, None),
+        ("Colombia",         "Jordan",                   True,  1,  0,  None, None, None),
+        # LUN 8 junio
+        ("Netherlands",      "Uzbekistan",               True,  20, 45, None, None, None),
+        ("France",           "Northern Ireland",         False, 21, 10, None, None, None),
+        ("Peru",             "Spain",                    True,  4,  0,  None, None, None),
+        # MAR 9 junio
+        ("Bahrain",          "Syria",                    True,  16, 0,  None, None, None),
+        ("Armenia",          "Moldova",                  False, 17, 0,  None, None, None),
+        ("Hungary",          "Kazakhstan",               False, 19, 0,  None, None, None),
+        ("Saudi Arabia",     "Senegal",                  True,  1,  0,  None, None, None),
+        ("Argentina",        "Iceland",                  True,  3,  0,  None, None, None),
+        ("Iraq",             "Venezuela",                True,  3,  0,  None, None, None),
+    ]
+
+    manual = []
+    now_utc = datetime.now(timezone.utc)
+    for row in MANUAL_FIXTURES:
+        local, visit, neutral, hh, mm = row[0], row[1], row[2], row[3], row[4]
+        o1, ox, o2 = row[5], row[6], row[7]
+        commence = today.replace(hour=hh, minute=mm)
+        # Si ya pasó hoy, mover al día siguiente
+        if commence < now_utc - timedelta(hours=3):
+            commence += timedelta(days=1)
+        manual.append({
+            'commence':    commence,
+            'home_api': local, 'away_api':  visit,
+            'home_csv': local, 'away_csv':  visit,
+            'odds':     {'home': o1, 'draw': ox, 'away': o2},
+            'odds_source': 'manual', 'margin': None,
+            'sport_key':   'friendly',
+            'neutral':     neutral,
+            'tournament':  'Amistoso Internacional',
+        })
+
+    if fixtures:
+        # Combinar API + manual sin duplicados
+        api_pairs = {(f['home_api'], f['away_api']) for f in fixtures}
+        for m in manual:
+            if (m['home_api'], m['away_api']) not in api_pairs:
+                fixtures.append(m)
+        fixtures = sorted(fixtures, key=lambda x: x['commence'])[:25]
+        print(f"   Total partidos (API + manuales): {len(fixtures)}")
+    else:
+        fixtures = sorted(manual, key=lambda x: x['commence'])
+        print(f"   Usando {len(fixtures)} partidos manuales de amistosos")
 
     # 5. Analizar cada partido
     analyses = []
