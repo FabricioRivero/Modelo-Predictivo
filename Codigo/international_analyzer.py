@@ -43,7 +43,7 @@ API_KEY_FOOTBALL = "f7de0f5bd4e48491c6e02aefa322d67a"  # API-Football  → convo
 # Parámetros del modelo
 XI              = 0.00180   # time decay más suave (selecciones juegan menos)
 TRAIN_FROM_YEAR = 2010      # solo usar datos desde 2010 (fútbol moderno)
-MIN_MATCHES     = 20        # mínimo partidos — sube de 8 a 20 para reducir equipos
+MIN_MATCHES     = 50        # mínimo partidos — solo selecciones activas (~60 equipos)
 N_SIM           = 100_000   # simulaciones Monte Carlo
 
 # Filtros value bet (calibrados para selecciones)
