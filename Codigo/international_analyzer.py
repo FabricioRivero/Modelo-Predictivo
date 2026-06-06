@@ -192,12 +192,8 @@ def load_results(base_path):
     # Filtrar desde TRAIN_FROM_YEAR
     df = df[df['year'] >= TRAIN_FROM_YEAR].copy()
 
-    # ── Filtrar solo selecciones de la whitelist ──
-    # Si el equipo está en la whitelist, lo incluimos sin importar cuántos partidos tiene
-    # Si no está, aplicamos MIN_MATCHES como respaldo
-    counts = pd.concat([df['home_team'], df['away_team']]).value_counts()
-    valid_teams = set(TEAM_WHITELIST) | set(counts[counts >= MIN_MATCHES].index)
-    df = df[df['home_team'].isin(valid_teams) & df['away_team'].isin(valid_teams)].copy()
+    # ── Filtrar SOLO selecciones de la whitelist ──
+    df = df[df['home_team'].isin(TEAM_WHITELIST) & df['away_team'].isin(TEAM_WHITELIST)].copy()
     df = df.reset_index(drop=True)
     df = df.sort_values('match_date').reset_index(drop=True)
 
