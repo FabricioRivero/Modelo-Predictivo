@@ -428,6 +428,7 @@ AF_BASE = "https://v3.football.api-sports.io"
 
 def _af_get(endpoint, params, api_key):
     """Llamada genérica a API-Football. Devuelve lista 'response' o []."""
+    import time
     try:
         import urllib.request, urllib.parse
         qs  = urllib.parse.urlencode(params)
@@ -435,6 +436,7 @@ def _af_get(endpoint, params, api_key):
         req = urllib.request.Request(url, headers={"x-apisports-key": api_key})
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
+        time.sleep(0.5)  # evitar rate limit (100 req/día, ~1 req/seg máx)
         return data.get("response", [])
     except Exception as e:
         print(f"  ⚠ API-Football [{endpoint}]: {e}")
@@ -709,23 +711,56 @@ INTL_SPORT_KEYS = [
     'soccer_concacaf_nations_league',
 ]
 
+def get_active_intl_sports(api_key):
+    """Consulta qué sports internacionales tienen partidos activos ahora."""
+    try:
+        import urllib.request
+        url = f"https://api.the-odds-api.com/v4/sports/?apiKey={api_key}"
+        with urllib.request.urlopen(url, timeout=10) as r:
+            all_sports = json.loads(r.read())
+        # Filtrar solo internacionales activos
+        intl_keys = []
+        for s in all_sports:
+            k = s['key']
+            if not s.get('active', False):
+                continue
+            if any(x in k for x in ['world_cup','international','copa_america',
+                                      'european_championship','nations_league',
+                                      'concacaf','conmebol','uefa_euro']):
+                intl_keys.append(k)
+        return intl_keys
+    except Exception as e:
+        print(f"  ⚠ No se pudo consultar sports activos: {e}")
+        return INTL_SPORT_KEYS  # fallback a la lista hardcodeada
+
 def fetch_international_fixtures(api_key, hours_ahead=96):
     """Consulta The Odds API para todos los deportes de selecciones."""
     try:
         import urllib.request
 
+        # Primero descubrir qué sports tienen cuotas activas
+        print("  🔍 Descubriendo sports internacionales con cuotas...")
+        active_keys = get_active_intl_sports(api_key)
+        if active_keys:
+            print(f"  ✓ Sports activos: {', '.join(active_keys)}")
+        else:
+            active_keys = INTL_SPORT_KEYS
+
         now    = datetime.now(timezone.utc)
         cutoff = now + timedelta(hours=hours_ahead)
         all_fixtures = []
 
-        for sport_key in INTL_SPORT_KEYS:
+        for sport_key in active_keys:
             url = (f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
                    f"?apiKey={api_key}&regions=eu&markets=h2h&oddsFormat=decimal"
-                   f"&bookmakers=pinnacle,betfair_ex_eu,bet365")
+                   f"&bookmakers=pinnacle,betfair_ex_eu,bet365,unibet,williamhill")
             try:
                 with urllib.request.urlopen(url, timeout=8) as resp:
                     data = json.loads(resp.read())
-            except Exception:
+                if data:
+                    print(f"  ✓ {sport_key}: {len(data)} partidos con cuotas")
+            except Exception as e:
+                print(f"  ⚠ {sport_key}: {e}")
                 continue
 
             for g in data:
@@ -1175,9 +1210,9 @@ if __name__ == '__main__':
                             form_home=f_home.get('pts_pg'),
                             form_away=f_away.get('pts_pg'))
 
-        # Info pre-partido de API-Football
+    # Info pre-partido de API-Football (solo el primer partido para no gastar requests)
         pre_info = None
-        if API_KEY_FOOTBALL:
+        if API_KEY_FOOTBALL and analyses == []:  # solo el primer partido
             pre_info = fetch_pre_match_info(fix['home_api'], fix['away_api'], API_KEY_FOOTBALL)
 
         analyses.append({
