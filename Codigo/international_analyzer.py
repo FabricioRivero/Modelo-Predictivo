@@ -192,6 +192,32 @@ def load_results(base_path):
     # Filtrar desde TRAIN_FROM_YEAR
     df = df[df['year'] >= TRAIN_FROM_YEAR].copy()
 
+    # ── Cargar parche 2026 si existe (resultados recientes no en Kaggle) ──
+    patch_path = os.path.join(os.path.dirname(path), 'results_2026_patch.csv')
+    if os.path.exists(patch_path):
+        patch = pd.read_csv(patch_path, encoding='utf-8-sig', low_memory=False)
+        patch.columns = [c.strip().lower().replace(' ','_') for c in patch.columns]
+        for col in ['home_score','away_score']:
+            if col in patch.columns:
+                patch.rename(columns={col: col.replace('score','goals')}, inplace=True)
+        patch['home_goals'] = pd.to_numeric(patch.get('home_goals', patch.get('home_score',0)), errors='coerce')
+        patch['away_goals'] = pd.to_numeric(patch.get('away_goals', patch.get('away_score',0)), errors='coerce')
+        patch['match_date'] = pd.to_datetime(patch['date'], errors='coerce')
+        patch['year'] = patch['match_date'].dt.year
+        patch['neutral'] = patch['neutral'].astype(str).str.lower().isin(['true','1','yes'])
+        if 'tournament' not in patch.columns:
+            patch['tournament'] = 'Friendly'
+        patch = patch.dropna(subset=['home_goals','away_goals','match_date'])
+        patch['home_goals'] = patch['home_goals'].astype(int)
+        patch['away_goals'] = patch['away_goals'].astype(int)
+        # Evitar duplicados (mantener parche sobre Kaggle)
+        df_keys = set(zip(df['match_date'].dt.date, df['home_team'], df['away_team']))
+        patch = patch[~patch.apply(
+            lambda r: (r['match_date'].date(), r['home_team'], r['away_team']) in df_keys, axis=1
+        )]
+        df = pd.concat([df, patch], ignore_index=True).sort_values('match_date').reset_index(drop=True)
+        print(f"  ✓ Parche 2026: +{len(patch)} partidos recientes añadidos")
+
     # ── Filtrar SOLO selecciones de la whitelist ──
     df = df[df['home_team'].isin(TEAM_WHITELIST) & df['away_team'].isin(TEAM_WHITELIST)].copy()
     df = df.reset_index(drop=True)

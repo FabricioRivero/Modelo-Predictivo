@@ -1,0 +1,62 @@
+date,home_team,away_team,home_score,away_score,tournament,city,country,neutral
+2025-06-10,Bolivia,Chile,2,0,FIFA World Cup qualification,La Paz,Bolivia,FALSE
+2025-09-04,Colombia,Bolivia,3,0,FIFA World Cup qualification,Barranquilla,Colombia,FALSE
+2025-09-09,Brazil,Bolivia,1,0,FIFA World Cup qualification,Belo Horizonte,Brazil,FALSE
+2026-01-18,Panama,Bolivia,1,1,Friendly,Panama City,Panama,FALSE
+2026-01-25,Mexico,Bolivia,1,0,Friendly,Mexico City,Mexico,FALSE
+2026-03-15,Trinidad and Tobago,Bolivia,0,3,Friendly,Port of Spain,Trinidad and Tobago,FALSE
+2026-03-26,Bolivia,Suriname,2,1,FIFA World Cup qualification,La Paz,Bolivia,FALSE
+2026-03-31,Iraq,Bolivia,2,1,FIFA World Cup qualification,Guadalupe,Mexico,TRUE
+2025-09-04,Germany,Finland,4,0,Friendly,Munich,Germany,FALSE
+2025-10-11,Germany,Netherlands,2,1,UEFA Nations League,Munich,Germany,FALSE
+2025-10-14,Bosnia and Herzegovina,Germany,0,2,UEFA Nations League,Zenica,Bosnia and Herzegovina,FALSE
+2025-11-15,Germany,Greece,4,1,UEFA Nations League,Mönchengladbach,Germany,FALSE
+2025-11-18,Greece,Germany,0,3,UEFA Nations League,Athens,Greece,FALSE
+2026-03-22,Germany,Italy,2,0,Friendly,Dortmund,Germany,FALSE
+2026-06-06,United States,Germany,0,1,Friendly,Chicago,United States,TRUE
+2026-03-22,England,Albania,5,0,Friendly,London,England,FALSE
+2026-03-25,England,Latvia,4,0,FIFA World Cup qualification,London,England,FALSE
+2026-06-01,England,Japan,0,1,Friendly,London,England,FALSE
+2026-05-31,Argentina,Mauritania,3,0,Friendly,Buenos Aires,Argentina,FALSE
+2026-05-31,Argentina,Zambia,3,0,Friendly,Buenos Aires,Argentina,FALSE
+2025-09-06,Scotland,Poland,2,2,FIFA World Cup qualification,Glasgow,Scotland,FALSE
+2025-10-09,Lithuania,Scotland,0,1,FIFA World Cup qualification,Vilnius,Lithuania,FALSE
+2025-10-12,Scotland,Croatia,1,2,FIFA World Cup qualification,Glasgow,Scotland,FALSE
+2025-11-13,Scotland,Greece,1,1,FIFA World Cup qualification,Glasgow,Scotland,FALSE
+2025-11-16,Kazakhstan,Scotland,1,2,FIFA World Cup qualification,Almaty,Kazakhstan,FALSE
+2026-03-25,Scotland,Kazakhstan,3,0,FIFA World Cup qualification,Glasgow,Scotland,FALSE
+2026-03-28,Poland,Scotland,0,1,FIFA World Cup qualification,Warsaw,Poland,FALSE
+2026-05-31,Scotland,Curacao,4,1,Friendly,Glasgow,Scotland,FALSE
+2025-09-05,Morocco,Gabon,3,0,Africa Cup of Nations qualification,Rabat,Morocco,FALSE
+2025-09-09,Morocco,Lesotho,2,0,Africa Cup of Nations qualification,Rabat,Morocco,FALSE
+2025-10-10,Comoros,Morocco,0,1,Africa Cup of Nations qualification,Moroni,Comoros,FALSE
+2025-10-14,Morocco,Niger,2,0,Africa Cup of Nations qualification,Rabat,Morocco,FALSE
+2026-03-21,Morocco,Zambia,2,0,Friendly,Casablanca,Morocco,FALSE
+2026-03-25,Morocco,Egypt,1,1,Friendly,Casablanca,Morocco,FALSE
+2025-09-08,Colombia,Peru,1,0,FIFA World Cup qualification,Barranquilla,Colombia,FALSE
+2025-10-10,Colombia,Uruguay,3,2,FIFA World Cup qualification,Barranquilla,Colombia,FALSE
+2025-10-15,Paraguay,Colombia,1,1,FIFA World Cup qualification,Asuncion,Paraguay,FALSE
+2025-11-13,Colombia,Ecuador,1,0,FIFA World Cup qualification,Barranquilla,Colombia,FALSE
+2025-11-18,Chile,Colombia,0,1,FIFA World Cup qualification,Santiago,Chile,FALSE
+2026-03-21,Colombia,Venezuela,2,1,Friendly,Barranquilla,Colombia,FALSE
+2026-03-25,Colombia,Costa Rica,3,0,Friendly,Barranquilla,Colombia,FALSE
+2026-05-28,Brazil,Mexico,3,0,Friendly,Sao Paulo,Brazil,FALSE
+2026-06-01,Brazil,Panama,6,2,Friendly,Rio de Janeiro,Brazil,FALSE
+2025-09-05,Switzerland,Spain,1,4,UEFA Nations League,Geneva,Switzerland,FALSE
+2025-09-08,Denmark,Switzerland,1,2,UEFA Nations League,Copenhagen,Denmark,FALSE
+2025-10-10,Switzerland,Serbia,3,0,UEFA Nations League,Basel,Switzerland,FALSE
+2025-10-13,Spain,Switzerland,3,1,UEFA Nations League,Cordoba,Spain,FALSE
+2025-11-14,Switzerland,Denmark,0,0,UEFA Nations League,Basel,Switzerland,FALSE
+2025-11-17,Serbia,Switzerland,1,2,UEFA Nations League,Belgrade,Serbia,FALSE
+2026-03-22,Switzerland,Kosovo,2,0,Friendly,Basel,Switzerland,FALSE
+2026-03-25,Switzerland,Serbia,3,1,Friendly,Geneva,Switzerland,FALSE
+2026-06-01,Switzerland,Jordan,4,1,Friendly,Bern,Switzerland,FALSE
+2025-10-10,France,Belgium,2,1,UEFA Nations League,Paris,France,FALSE
+2025-10-13,Italy,France,1,3,UEFA Nations League,Milan,France,FALSE
+2025-11-15,France,Italy,2,1,UEFA Nations League,Paris,France,FALSE
+2025-11-18,Belgium,France,1,2,UEFA Nations League,Brussels,France,FALSE
+2026-03-22,Ivory Coast,France,2,1,Friendly,Nantes,France,FALSE
+2025-09-07,Netherlands,Germany,2,2,UEFA Nations League,Amsterdam,Netherlands,FALSE
+2025-10-11,Hungary,Netherlands,1,4,UEFA Nations League,Budapest,Netherlands,FALSE
+2025-11-15,Netherlands,Hungary,4,0,UEFA Nations League,Rotterdam,Netherlands,FALSE
+2026-03-22,Netherlands,Spain,2,2,Friendly,Amsterdam,Netherlands,FALSE
