@@ -733,8 +733,10 @@ def get_active_intl_sports(api_key):
         print(f"  ⚠ No se pudo consultar sports activos: {e}")
         return INTL_SPORT_KEYS  # fallback a la lista hardcodeada
 
-def fetch_international_fixtures(api_key, hours_ahead=96):
-    """Consulta The Odds API para todos los deportes de selecciones."""
+def fetch_international_fixtures(api_key, hours_ahead=240):
+    """Consulta The Odds API para todos los deportes de selecciones.
+    hours_ahead=240 (10 días) para capturar amistosos + primeros partidos del Mundial.
+    """
     try:
         import urllib.request
 
@@ -832,7 +834,7 @@ def fetch_international_fixtures(api_key, hours_ahead=96):
                 seen.add(key)
                 unique.append(fx)
 
-        return sorted(unique, key=lambda x: x['commence'])
+        return sorted(unique, key=lambda x: x['commence'])[:20]  # máx 20 partidos
 
     except Exception as e:
         print(f"  ⚠ Error API: {e}")
@@ -1168,7 +1170,7 @@ if __name__ == '__main__':
         print(f"   #{str(rank):<3} {team:<25} {v:+.3f}")
 
     # 4. Obtener partidos
-    print(f"\n🔍 Buscando partidos internacionales próximos (96h)...")
+    print(f"\n🔍 Buscando partidos internacionales próximos (10 días)...")
     fixtures = fetch_international_fixtures(API_KEY_ODDS)
 
     if fixtures:
