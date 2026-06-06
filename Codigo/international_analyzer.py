@@ -287,10 +287,8 @@ def dc_log_likelihood(params, df, teams, neutral_idx):
     return -np.sum(ll)
 
 def fit_model(df, verbose=True):
-    # Filtrar equipos con mínimo de partidos
-    counts = pd.concat([df['home_team'], df['away_team']]).value_counts()
-    valid  = counts[counts >= MIN_MATCHES].index.tolist()
-    df_fit = df[df['home_team'].isin(valid) & df['away_team'].isin(valid)].copy()
+    # Usar SOLO la whitelist — ya filtrado en load_results()
+    df_fit = df.copy()
 
     teams  = sorted(set(df_fit['home_team']) | set(df_fit['away_team']))
     n      = len(teams)
