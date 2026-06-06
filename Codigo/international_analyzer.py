@@ -43,7 +43,7 @@ API_KEY_FOOTBALL = "f7de0f5bd4e48491c6e02aefa322d67a"  # API-Football  → convo
 # Parámetros del modelo
 XI              = 0.00180   # time decay más suave (selecciones juegan menos)
 TRAIN_FROM_YEAR = 2010      # solo usar datos desde 2010 (fútbol moderno)
-MIN_MATCHES     = 8         # mínimo partidos para modelar un equipo
+MIN_MATCHES     = 20        # mínimo partidos — sube de 8 a 20 para reducir equipos
 N_SIM           = 100_000   # simulaciones Monte Carlo
 
 # Filtros value bet (calibrados para selecciones)
@@ -160,6 +160,12 @@ def load_results(base_path):
 
     # Filtrar desde TRAIN_FROM_YEAR
     df = df[df['year'] >= TRAIN_FROM_YEAR].copy()
+
+    # ── Solo selecciones con suficientes partidos (evita 306 equipos) ──
+    counts = pd.concat([df['home_team'], df['away_team']]).value_counts()
+    valid_teams = counts[counts >= MIN_MATCHES].index
+    df = df[df['home_team'].isin(valid_teams) & df['away_team'].isin(valid_teams)].copy()
+    df = df.reset_index(drop=True)
     df = df.sort_values('match_date').reset_index(drop=True)
 
     # Peso por torneo + time decay
@@ -170,7 +176,7 @@ def load_results(base_path):
     df['weight']    = df['t_weight'] * df['td_weight']
 
     print(f"  ✓ {len(df):,} partidos cargados ({df['year'].min()}–{df['year'].max()})")
-    print(f"  ✓ {df['home_team'].nunique()} selecciones distintas")
+    print(f"  ✓ {df['home_team'].nunique()} selecciones con ≥{MIN_MATCHES} partidos")
     print(f"  ✓ Amistosos: {(df['tournament'].str.lower().str.contains('friendly')).sum():,} | "
           f"Oficiales: {(~df['tournament'].str.lower().str.contains('friendly')).sum():,}")
     return df
