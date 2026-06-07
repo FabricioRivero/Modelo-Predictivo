@@ -1243,49 +1243,89 @@ if __name__ == '__main__':
         ]
         fixtures = []
 
-    # ── PARTIDOS MANUALES (amistosos que The Odds API no cubre) ──────────
-    # Edita esta lista con los partidos del día.
-    # Formato: (local, visitante, neutral, hora_h, hora_m, odds_1, odds_X, odds_2)
-    # Si no tienes cuotas escribe None.
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    # ── CARGAR CUOTAS DESDE scraper_cuotas.py (cuotas_hoy.csv) ──────────
+    # Ejecuta primero: python scraper_cuotas.py
+    # Luego ejecuta:   python international_analyzer.py
+    # Las cuotas se cargan automáticamente sin editar nada.
 
-    MANUAL_FIXTURES = [
-        # SAB 6 junio — YA JUGADOS
-        ("Portugal",         "Chile",                    True,  20, 0,  None, None, None),
-        ("Romania",          "Wales",                    False, 19, 0,  None, None, None),
-        ("United States",    "Germany",                  True,  20, 30, None, None, None),
-        ("Panama",           "Bosnia and Herzegovina",   True,  21, 0,  None, None, None),
-        ("Switzerland",      "Australia",                True,  21, 0,  None, None, None),
-        ("Bolivia",          "Scotland",                 True,  22, 0,  None, None, None),
-        ("Qatar",            "El Salvador",              True,  22, 0,  None, None, None),
-        ("England",          "New Zealand",              True,  22, 0,  None, None, None),
-        ("Brazil",           "Egypt",                    True,  0,  0,  None, None, None),
-        ("Venezuela",        "Turkey",                   True,  0,  0,  None, None, None),
-        ("Argentina",        "Honduras",                 True,  2,  0,  None, None, None),
-        # DOM 7 junio — CON CUOTAS
-        ("Denmark",          "Ukraine",                  False, 18, 30, 1.47, 4.20, 7.00),
-        ("Kosovo",           "Andorra",                  False, 20, 0,  1.20, 7.60, 20.0),
-        ("Croatia",          "Slovenia",                 False, 20, 45, 1.45, 4.70, 9.80),
-        ("Morocco",          "Norway",                   True,  21, 0,  3.00, 3.50, 2.48),
-        ("Greece",           "Italy",                    False, 21, 0,  2.75, 3.55, 2.92),
-        ("Ecuador",          "Guatemala",                True,  22, 0,  1.17, 9.30, 25.0),
-        ("Colombia",         "Jordan",                   True,  1,  0,  1.21, 8.30, 17.0),
-        # LUN 8 junio — CON CUOTAS
-        ("Netherlands",      "Uzbekistan",               True,  20, 45, 1.28, 6.60, 11.5),
-        ("France",           "Northern Ireland",         False, 21, 10, 1.16, 7.50, 14.0),
-        ("Spain",            "Peru",                     True,  4,  0,  1.22, 6.00, 10.0),
-        # MAR 9 junio — CON CUOTAS
-        ("Bahrain",          "Syria",                    True,  16, 0,  None, None, None),
-        ("Armenia",          "Moldova",                  False, 17, 0,  None, None, None),
-        ("Hungary",          "Kazakhstan",               False, 19, 0,  None, None, None),
-        ("Senegal",          "Saudi Arabia",             True,  1,  0,  1.53, 4.20, 6.50),
-        ("Argentina",        "Iceland",                  True,  3,  0,  1.08, 10.0, 23.0),
-        ("Iraq",             "Venezuela",                True,  3,  0,  None, None, None),
-        # MIE 10 junio — CON CUOTAS
-        ("Portugal",         "Nigeria",                  False, 21, 45, 1.27, 5.50, 9.00),
-        ("Bolivia",          "Algeria",                  True,  22, 0,  None, None, None),
-        ("England",          "Costa Rica",               True,  22, 0,  1.21, 5.60, 14.0),
-    ]
+    # Mapeo nombres scraper → nombres del modelo
+    SCRAPER_NAME_MAP = {
+        "Côte d'Ivoire":       "Ivory Coast",
+        "Korea Republic":      "South Korea",
+        "Bosnia Herzegovina":  "Bosnia and Herzegovina",
+        "Turkiye":             "Turkey",
+        "China PR":            "China",
+        "Cape Verde Isl.":     "Cape Verde",
+        "Trinidad And Tobago": "Trinidad and Tobago",
+        "DR Congo":            "DR Congo",
+        "Northern Ireland":    "Northern Ireland",
+        "USA":                 "United States",
+    }
+
+    def map_scraper_name(n):
+        return SCRAPER_NAME_MAP.get(n, n)
+
+    cuotas_csv = os.path.join(BASE, 'cuotas_hoy.csv')
+    cuotas_dict = {}  # (home, away) → {home, draw, away, source}
+    now_utc = datetime.now(timezone.utc)
+
+    if os.path.exists(cuotas_csv):
+        try:
+            cdf = pd.read_csv(cuotas_csv, encoding='utf-8')
+            cdf['match_date'] = pd.to_datetime(cdf['date'], errors='coerce')
+            # Solo partidos próximos (hoy + 10 días)
+            cutoff_odds = now_utc + timedelta(days=10)
+            cdf = cdf[cdf['match_date'] >= pd.Timestamp(now_utc.date(), tz='UTC') - timedelta(hours=3)]
+            cdf = cdf[cdf['match_date'] <= cutoff_odds]
+            for _, row in cdf.iterrows():
+                h = map_scraper_name(str(row['home_team']).strip())
+                a = map_scraper_name(str(row['away_team']).strip())
+                o1 = float(row['odds_home']) if str(row['odds_home']) not in ('', 'nan') else None
+                ox = float(row['odds_draw']) if str(row['odds_draw']) not in ('', 'nan') else None
+                o2 = float(row['odds_away']) if str(row['odds_away']) not in ('', 'nan') else None
+                cuotas_dict[(h.lower(), a.lower())] = {
+                    'home': o1, 'draw': ox, 'away': o2,
+                    'source': str(row.get('source', 'scraper')).split('|')[0],
+                    'date': row['match_date'],
+                }
+            print(f"   ✓ cuotas_hoy.csv: {len(cuotas_dict)} partidos con cuotas del scraper")
+        except Exception as e:
+            print(f"   ⚠ Error leyendo cuotas_hoy.csv: {e}")
+    else:
+        print("   ⚠ cuotas_hoy.csv no encontrado. Ejecuta primero: python scraper_cuotas.py")
+
+    # Construir fixtures desde cuotas_hoy.csv
+    today = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    manual = []
+    for (h_low, a_low), cuota in cuotas_dict.items():
+        # Buscar nombre original (title case)
+        h_name = next((r['home_team'] for _, r in pd.read_csv(cuotas_csv).iterrows()
+                       if map_scraper_name(r['home_team']).lower() == h_low), h_low.title())
+        a_name = next((r['away_team'] for _, r in pd.read_csv(cuotas_csv).iterrows()
+                       if map_scraper_name(r['away_team']).lower() == a_low), a_low.title())
+        h_name = map_scraper_name(h_name)
+        a_name = map_scraper_name(a_name)
+
+        commence = cuota['date']
+        if hasattr(commence, 'to_pydatetime'):
+            commence = commence.to_pydatetime()
+        if commence.tzinfo is None:
+            commence = commence.replace(tzinfo=timezone.utc)
+
+        # Detectar sede neutral: Mundial y partidos en USA son neutrales
+        neutral = True  # internacionales casi siempre son neutrales
+
+        manual.append({
+            'commence':    commence,
+            'home_api': h_name, 'away_api':  a_name,
+            'home_csv': h_name, 'away_csv':  a_name,
+            'odds':     {'home': cuota['home'], 'draw': cuota['draw'], 'away': cuota['away']},
+            'odds_source': cuota['source'],
+            'margin':      None,
+            'sport_key':   'scraper',
+            'neutral':     neutral,
+            'tournament':  'Internacional',
+        })
 
     manual = []
     now_utc = datetime.now(timezone.utc)
@@ -1308,16 +1348,16 @@ if __name__ == '__main__':
         })
 
     if fixtures:
-        # Combinar API + manual sin duplicados
-        api_pairs = {(f['home_api'], f['away_api']) for f in fixtures}
+        # Combinar API + scraper sin duplicados
+        api_pairs = {(f['home_api'].lower(), f['away_api'].lower()) for f in fixtures}
         for m in manual:
-            if (m['home_api'], m['away_api']) not in api_pairs:
+            if (m['home_api'].lower(), m['away_api'].lower()) not in api_pairs:
                 fixtures.append(m)
-        fixtures = sorted(fixtures, key=lambda x: x['commence'])[:25]
-        print(f"   Total partidos (API + manuales): {len(fixtures)}")
+        fixtures = sorted(fixtures, key=lambda x: x['commence'])[:30]
+        print(f"   Total partidos (API + scraper): {len(fixtures)}")
     else:
-        fixtures = sorted(manual, key=lambda x: x['commence'])
-        print(f"   Usando {len(fixtures)} partidos manuales de amistosos")
+        fixtures = sorted(manual, key=lambda x: x['commence'])[:30]
+        print(f"   Usando {len(fixtures)} partidos del scraper")
 
     # 5. Analizar cada partido
     analyses = []
