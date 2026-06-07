@@ -1250,7 +1250,7 @@ if __name__ == '__main__':
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     MANUAL_FIXTURES = [
-        # SAB 6 junio — amistosos
+        # SAB 6 junio — YA JUGADOS
         ("Portugal",         "Chile",                    True,  20, 0,  None, None, None),
         ("Romania",          "Wales",                    False, 19, 0,  None, None, None),
         ("United States",    "Germany",                  True,  20, 30, None, None, None),
@@ -1262,25 +1262,29 @@ if __name__ == '__main__':
         ("Brazil",           "Egypt",                    True,  0,  0,  None, None, None),
         ("Venezuela",        "Turkey",                   True,  0,  0,  None, None, None),
         ("Argentina",        "Honduras",                 True,  2,  0,  None, None, None),
-        # DOM 7 junio
-        ("Denmark",          "Ukraine",                  False, 18, 30, None, None, None),
-        ("Kosovo",           "Andorra",                  False, 20, 0,  None, None, None),
-        ("Croatia",          "Slovenia",                 False, 20, 45, None, None, None),
-        ("Greece",           "Italy",                    False, 21, 0,  None, None, None),
-        ("Morocco",          "Norway",                   True,  21, 0,  None, None, None),
-        ("Ecuador",          "Guatemala",                True,  22, 0,  None, None, None),
-        ("Colombia",         "Jordan",                   True,  1,  0,  None, None, None),
-        # LUN 8 junio
-        ("Netherlands",      "Uzbekistan",               True,  20, 45, None, None, None),
-        ("France",           "Northern Ireland",         False, 21, 10, None, None, None),
-        ("Peru",             "Spain",                    True,  4,  0,  None, None, None),
-        # MAR 9 junio
+        # DOM 7 junio — CON CUOTAS
+        ("Denmark",          "Ukraine",                  False, 18, 30, 1.47, 4.20, 7.00),
+        ("Kosovo",           "Andorra",                  False, 20, 0,  1.20, 7.60, 20.0),
+        ("Croatia",          "Slovenia",                 False, 20, 45, 1.45, 4.70, 9.80),
+        ("Morocco",          "Norway",                   True,  21, 0,  3.00, 3.50, 2.48),
+        ("Greece",           "Italy",                    False, 21, 0,  2.75, 3.55, 2.92),
+        ("Ecuador",          "Guatemala",                True,  22, 0,  1.17, 9.30, 25.0),
+        ("Colombia",         "Jordan",                   True,  1,  0,  1.21, 8.30, 17.0),
+        # LUN 8 junio — CON CUOTAS
+        ("Netherlands",      "Uzbekistan",               True,  20, 45, 1.28, 6.60, 11.5),
+        ("France",           "Northern Ireland",         False, 21, 10, 1.16, 7.50, 14.0),
+        ("Spain",            "Peru",                     True,  4,  0,  1.22, 6.00, 10.0),
+        # MAR 9 junio — CON CUOTAS
         ("Bahrain",          "Syria",                    True,  16, 0,  None, None, None),
         ("Armenia",          "Moldova",                  False, 17, 0,  None, None, None),
         ("Hungary",          "Kazakhstan",               False, 19, 0,  None, None, None),
-        ("Saudi Arabia",     "Senegal",                  True,  1,  0,  None, None, None),
-        ("Argentina",        "Iceland",                  True,  3,  0,  None, None, None),
+        ("Senegal",          "Saudi Arabia",             True,  1,  0,  1.53, 4.20, 6.50),
+        ("Argentina",        "Iceland",                  True,  3,  0,  1.08, 10.0, 23.0),
         ("Iraq",             "Venezuela",                True,  3,  0,  None, None, None),
+        # MIE 10 junio — CON CUOTAS
+        ("Portugal",         "Nigeria",                  False, 21, 45, 1.27, 5.50, 9.00),
+        ("Bolivia",          "Algeria",                  True,  22, 0,  None, None, None),
+        ("England",          "Costa Rica",               True,  22, 0,  1.21, 5.60, 14.0),
     ]
 
     manual = []
