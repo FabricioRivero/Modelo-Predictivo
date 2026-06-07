@@ -266,39 +266,96 @@ def load_results(base_path):
 
 
 # ══════════════════════════════════════════════════════════════
-# BLOQUE 2 — RANKING FIFA (prior para equipos con poco historial)
+# BLOQUE 2 — RANKING FIFA (carga desde CSV real)
 # ══════════════════════════════════════════════════════════════
-# Ranking FIFA aproximado (junio 2026) — top 50 selecciones
-# Fuente: fifa.com/fifa-world-ranking
-FIFA_RANKING = {
-    'Argentina': 1, 'France': 2, 'England': 3, 'Spain': 4,
-    'Brazil': 5, 'Belgium': 6, 'Portugal': 7, 'Netherlands': 8,
-    'Germany': 9, 'Italy': 10, 'Croatia': 11, 'Morocco': 12,
-    'Japan': 13, 'United States': 14, 'Mexico': 15, 'Switzerland': 16,
-    'Senegal': 17, 'Iran': 18, 'Colombia': 19, 'Denmark': 20,
-    'Uruguay': 21, 'South Korea': 22, 'Ecuador': 23, 'Canada': 24,
-    'Austria': 25, 'Hungary': 26, 'Turkey': 27, 'Australia': 28,
-    'Wales': 29, 'Poland': 30, 'Serbia': 31, 'Ukraine': 32,
-    'Chile': 33, 'Peru': 34, 'Nigeria': 35, 'Sweden': 36,
-    'Czechia': 37, 'Czech Republic': 37, 'Scotland': 38, 'Greece': 39,
-    'Egypt': 40, 'Algeria': 41, 'Ivory Coast': 42, 'Costa Rica': 43,
-    'Russia': 44, 'Romania': 45, 'Slovakia': 46, 'Ghana': 47,
-    'South Africa': 48, 'Cameroon': 49, 'Tunisia': 50,
-    'Saudi Arabia': 51, 'Qatar': 52, 'New Zealand': 53,
-    'Bolivia': 55, 'Venezuela': 56, 'Paraguay': 57,
-    'Jamaica': 60, 'Panama': 62, 'Honduras': 65,
-    'Guatemala': 70, 'El Salvador': 72,
+
+FIFA_NAME_MAP = {
+    'IR Iran':                   'Iran',
+    'Türkiye':                   'Turkey',
+    'Korea Republic':            'South Korea',
+    'USA':                       'United States',
+    "Côte d'Ivoire":             'Ivory Coast',
+    "Cote d'Ivoire":             'Ivory Coast',
+    'DR Congo':                  'DR Congo',
+    'Congo DR':                  'DR Congo',
+    'Czechia':                   'Czech Republic',
+    'China PR':                  'China',
+    'Bosnia & Herzegovina':      'Bosnia and Herzegovina',
+    'Bosnia and Herzegovina':    'Bosnia and Herzegovina',
 }
 
-def get_fifa_prior(team, n_teams_in_model):
-    """
-    Devuelve un prior de ataque basado en el ranking FIFA.
-    Top 10 → +0.15, posición 50+ → -0.15
-    """
+def load_fifa_ranking(base_path):
+    """Carga ranking FIFA desde CSV. Devuelve dict: team → rank"""
+    candidates = [
+        'fifa_mens_rank.csv',
+        'fifa_ranking-2024-06-20.csv',
+        'fifa_ranking-2024-04-04.csv',
+        'fifa_ranking-2023-07-20.csv',
+    ]
+    for fname in candidates:
+        path = os.path.join(base_path, fname)
+        if not os.path.exists(path):
+            continue
+        try:
+            df = pd.read_csv(path, encoding='utf-8-sig', low_memory=False)
+            df.columns = [c.strip().lower().replace('.','_').replace(' ','_')
+                          for c in df.columns]
+            # fifa_mens_rank.csv: date, semester, rank, team
+            if 'team' in df.columns and 'semester' in df.columns:
+                latest = df[df['date'] == df['date'].max()]
+                latest = latest[latest['semester'] == latest['semester'].max()]
+                ranking = {}
+                for _, row in latest.iterrows():
+                    name = FIFA_NAME_MAP.get(str(row['team']).strip(),
+                                             str(row['team']).strip())
+                    ranking[name] = int(row['rank'])
+                yr = int(df['date'].max())
+                sem = int(latest['semester'].iloc[0])
+                print(f"  ✓ Ranking FIFA: {len(ranking)} selecciones "
+                      f"(año {yr} sem {sem} — {fname})")
+                return ranking
+            # fifa_ranking-XXXX.csv: rank, country_full, rank_date
+            if 'country_full' in df.columns:
+                latest = df[df['rank_date'] == df['rank_date'].max()]
+                ranking = {}
+                for _, row in latest.iterrows():
+                    name = FIFA_NAME_MAP.get(str(row['country_full']).strip(),
+                                             str(row['country_full']).strip())
+                    ranking[name] = int(row['rank'])
+                print(f"  ✓ Ranking FIFA: {len(ranking)} selecciones "
+                      f"(fecha {df['rank_date'].max()} — {fname})")
+                return ranking
+        except Exception as e:
+            print(f"  ⚠ Error leyendo {fname}: {e}")
+    # Fallback hardcodeado
+    print("  ⚠ CSV ranking FIFA no encontrado — usando fallback hardcodeado")
+    return {
+        'Argentina':1,'France':2,'Spain':3,'England':4,'Brazil':5,
+        'Portugal':6,'Netherlands':7,'Belgium':8,'Italy':9,'Germany':10,
+        'Uruguay':11,'Colombia':12,'Croatia':13,'Morocco':14,'Japan':15,
+        'United States':16,'Senegal':17,'Iran':18,'Mexico':19,'Switzerland':20,
+        'Denmark':21,'Austria':22,'South Korea':23,'Ecuador':24,'Ukraine':25,
+        'Australia':26,'Sweden':27,'Turkey':28,'Wales':29,'Hungary':30,
+        'Poland':31,'Serbia':32,'Chile':33,'Peru':34,'Nigeria':35,
+        'Czech Republic':36,'Scotland':37,'Greece':38,'Egypt':39,'Algeria':40,
+        'Ivory Coast':41,'Costa Rica':42,'Russia':43,'Romania':44,'Slovakia':45,
+        'Ghana':46,'South Africa':47,'Cameroon':48,'Tunisia':49,'Saudi Arabia':50,
+        'Qatar':51,'Bolivia':52,'Paraguay':53,'Panama':54,'Honduras':55,
+        'Venezuela':56,'Guatemala':57,'El Salvador':58,'Iraq':59,'Jordan':60,
+        'Norway':61,'Bahrain':62,'Syria':63,'Kyrgyzstan':64,'Palestine':65,
+        'Uzbekistan':66,'Tajikistan':67,'DR Congo':68,'Iceland':69,
+        'Northern Ireland':70,'Georgia':71,'Albania':72,'Kosovo':73,
+        'Israel':74,'New Zealand':75,
+    }
+
+# Se inicializa en MAIN con load_fifa_ranking(BASE)
+FIFA_RANKING = {}
+
+def get_fifa_prior(team, n_teams_in_model=100):
+    """Prior de ataque basado en ranking FIFA real. Top 1→+0.20, pos 80+→-0.20"""
     rank = FIFA_RANKING.get(team, 80)
-    # Normalizar: rank 1 → +0.15, rank 80+ → -0.15
-    prior = 0.15 - (rank - 1) * (0.30 / 79)
-    return np.clip(prior, -0.20, 0.20)
+    prior = 0.20 - (rank - 1) * (0.40 / 79)
+    return float(np.clip(prior, -0.25, 0.25))
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1201,6 +1258,10 @@ if __name__ == '__main__':
     print("=" * 65)
     print("  INTERNATIONAL ANALYZER — Dixon-Coles para Selecciones")
     print("=" * 65)
+
+    # 0. Cargar ranking FIFA real desde CSV
+    print(f"\n🏆 Cargando ranking FIFA...")
+    FIFA_RANKING.update(load_fifa_ranking(BASE))
 
     # 1. Cargar datos
     print(f"\n📂 Cargando {RESULTS_CSV}...")
