@@ -1,0 +1,29 @@
+# ── Reportes generados automáticamente ──
+Codigo/international_report.html
+Codigo/jleague_report.html
+Codigo/backtest_report.html
+Codigo/backtest_results.csv
+
+# ── Archivos temporales del scraper ──
+Codigo/parcial_*.csv
+Codigo/debug_*.html
+
+# ── Páginas guardadas de casas de apuestas ──
+Codigo/bet365*/
+Codigo/*.html
+!Codigo/README.md
+
+# ── Scripts de debug/test ──
+Codigo/test_*.py
+Codigo/buscar_urls.py
+
+# ── Entorno virtual Python ──
+Codigo/.venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ── OS ──
+.DS_Store
+Thumbs.db
