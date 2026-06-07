@@ -360,6 +360,7 @@ FIFA_NAME_MAP = {
 def load_fifa_ranking(base_path):
     """Carga ranking FIFA desde CSV. Devuelve dict: team → rank"""
     candidates = [
+        'ranking_fifa.csv',
         'fifa_mens_rank.csv',
         'fifa_ranking-2024-06-20.csv',
         'fifa_ranking-2024-04-04.csv',
