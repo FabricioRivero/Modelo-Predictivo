@@ -401,7 +401,11 @@ def load_fifa_ranking(base_path):
                 return ranking
         except Exception as e:
             print(f"  ⚠ Error leyendo {fname}: {e}")
-    # Fallback hardcodeado
+    # Debug: mostrar qué buscó
+    print(f"  ℹ Buscado en: {base_path}")
+    for fname in candidates:
+        p = os.path.join(base_path, fname)
+        print(f"    {'✓' if os.path.exists(p) else '✗'} {p}")
     print("  ⚠ CSV ranking FIFA no encontrado — usando fallback hardcodeado")
     return {
         'Argentina':1,'France':2,'Spain':3,'England':4,'Brazil':5,
