@@ -1275,8 +1275,12 @@ if __name__ == '__main__':
             cdf['match_date'] = pd.to_datetime(cdf['date'], errors='coerce')
             # Solo partidos próximos (hoy + 10 días)
             cutoff_odds = now_utc + timedelta(days=10)
-            cdf = cdf[cdf['match_date'] >= pd.Timestamp(now_utc.date(), tz='UTC') - timedelta(hours=3)]
-            cdf = cdf[cdf['match_date'] <= cutoff_odds]
+            # Convertir a naive para comparación sin problemas de timezone
+            cdf['match_date'] = cdf['match_date'].dt.tz_localize(None)
+            today_naive = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            cutoff_naive = today_naive + timedelta(days=10)
+            cdf = cdf[cdf['match_date'] >= today_naive - timedelta(hours=3)]
+            cdf = cdf[cdf['match_date'] <= cutoff_naive]
             for _, row in cdf.iterrows():
                 h = map_scraper_name(str(row['home_team']).strip())
                 a = map_scraper_name(str(row['away_team']).strip())
@@ -1297,19 +1301,28 @@ if __name__ == '__main__':
     # Construir fixtures desde cuotas_hoy.csv
     today = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
     manual = []
+    # Cargar CSV una sola vez para mapear nombres originales
+    orig_names = {}
+    if os.path.exists(cuotas_csv):
+        try:
+            _cdf = pd.read_csv(cuotas_csv, encoding='utf-8')
+            for _, r in _cdf.iterrows():
+                h = map_scraper_name(str(r['home_team']).strip())
+                a = map_scraper_name(str(r['away_team']).strip())
+                orig_names[h.lower()] = h
+                orig_names[a.lower()] = a
+        except Exception:
+            pass
+
     for (h_low, a_low), cuota in cuotas_dict.items():
-        # Buscar nombre original (title case)
-        h_name = next((r['home_team'] for _, r in pd.read_csv(cuotas_csv).iterrows()
-                       if map_scraper_name(r['home_team']).lower() == h_low), h_low.title())
-        a_name = next((r['away_team'] for _, r in pd.read_csv(cuotas_csv).iterrows()
-                       if map_scraper_name(r['away_team']).lower() == a_low), a_low.title())
-        h_name = map_scraper_name(h_name)
-        a_name = map_scraper_name(a_name)
+        h_name = orig_names.get(h_low, h_low.title())
+        a_name = orig_names.get(a_low, a_low.title())
 
         commence = cuota['date']
         if hasattr(commence, 'to_pydatetime'):
             commence = commence.to_pydatetime()
-        if commence.tzinfo is None:
+        # Asegurar timezone UTC
+        if hasattr(commence, 'tzinfo') and commence.tzinfo is None:
             commence = commence.replace(tzinfo=timezone.utc)
 
         # Detectar sede neutral: Mundial y partidos en USA son neutrales
@@ -1325,26 +1338,6 @@ if __name__ == '__main__':
             'sport_key':   'scraper',
             'neutral':     neutral,
             'tournament':  'Internacional',
-        })
-
-    manual = []
-    now_utc = datetime.now(timezone.utc)
-    for row in MANUAL_FIXTURES:
-        local, visit, neutral, hh, mm = row[0], row[1], row[2], row[3], row[4]
-        o1, ox, o2 = row[5], row[6], row[7]
-        commence = today.replace(hour=hh, minute=mm)
-        # Si ya pasó hoy, mover al día siguiente
-        if commence < now_utc - timedelta(hours=3):
-            commence += timedelta(days=1)
-        manual.append({
-            'commence':    commence,
-            'home_api': local, 'away_api':  visit,
-            'home_csv': local, 'away_csv':  visit,
-            'odds':     {'home': o1, 'draw': ox, 'away': o2},
-            'odds_source': 'manual', 'margin': None,
-            'sport_key':   'friendly',
-            'neutral':     neutral,
-            'tournament':  'Amistoso Internacional',
         })
 
     if fixtures:
