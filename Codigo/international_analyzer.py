@@ -567,6 +567,7 @@ def predict_match(home, away, params, neutral=False, n_sim=N_SIM):
         if h <= 5 and a <= 5:
             matrix[h, a] = cnt / nv
 
+    total = hg + ag
     return {
         'home': home, 'away': away,
         'lambda_home': lam_h, 'lambda_away': lam_a,
@@ -578,6 +579,21 @@ def predict_match(home, away, params, neutral=False, n_sim=N_SIM):
         'neutral':    neutral,
         'known_home': home in params['teams'],
         'known_away': away in params['teams'],
+        # ── Over/Under ──────────────────────────────────
+        'p_over05':   np.sum(total >= 1) / nv,
+        'p_over15':   np.sum(total >= 2) / nv,
+        'p_over25':   np.sum(total >= 3) / nv,
+        'p_over35':   np.sum(total >= 4) / nv,
+        'p_over45':   np.sum(total >= 5) / nv,
+        'p_under25':  np.sum(total <= 2) / nv,
+        'p_under35':  np.sum(total <= 3) / nv,
+        # ── BTTS (ambos anotan) ─────────────────────────
+        'p_btts_yes': np.sum((hg >= 1) & (ag >= 1)) / nv,
+        'p_btts_no':  np.sum((hg == 0) | (ag == 0)) / nv,
+        # ── Goles esperados ─────────────────────────────
+        'exp_goals_home': round(lam_h, 3),
+        'exp_goals_away': round(lam_a, 3),
+        'exp_goals_total': round(lam_h + lam_a, 3),
     }
 
 
@@ -1033,6 +1049,48 @@ def fetch_international_fixtures(api_key, hours_ahead=240):
 
 
 # ══════════════════════════════════════════════════════════════
+# BLOQUE 7b — VALUE BET OVER/UNDER + BTTS
+# ══════════════════════════════════════════════════════════════
+def calc_ou_btts_value(pred, cuotas_ou):
+    """
+    cuotas_ou: dict con cuotas opcionales:
+      {'over25': float, 'under25': float, 'btts_yes': float, 'btts_no': float,
+       'over15': float, 'over35': float}
+    Retorna dict con value bets detectadas en estos mercados.
+    """
+    if not cuotas_ou:
+        return {}
+    results = {}
+    mercados = [
+        ('over15',   'p_over15',   'Más +1.5 goles'),
+        ('over25',   'p_over25',   'Más +2.5 goles'),
+        ('under25',  'p_under25',  'Menos -2.5 goles'),
+        ('over35',   'p_over35',   'Más +3.5 goles'),
+        ('under35',  'p_under35',  'Menos -3.5 goles'),
+        ('btts_yes', 'p_btts_yes', 'Ambos anotan: SÍ'),
+        ('btts_no',  'p_btts_no',  'Ambos anotan: NO'),
+    ]
+    for key, prob_key, label in mercados:
+        odd = cuotas_ou.get(key)
+        if not odd or odd <= 1.0:
+            continue
+        implied  = 1.0 / odd
+        model_p  = pred.get(prob_key, 0)
+        value    = model_p - implied
+        edge_rel = value / implied if implied > 0 else 0
+        results[key] = {
+            'label':        label,
+            'prob_model':   round(model_p, 4),
+            'odd':          odd,
+            'value':        round(value, 4),
+            'edge_rel':     round(edge_rel, 4),
+            'has_value':    value > 0.04,
+            'strong_value': value > 0.04 and edge_rel > 0.08,
+        }
+    return results
+
+
+# ══════════════════════════════════════════════════════════════
 # BLOQUE 7 — CÁLCULO VALUE BET
 # ══════════════════════════════════════════════════════════════
 def calc_value(pred, odds, form_home=None, form_away=None):
@@ -1217,6 +1275,49 @@ def generate_html(analyses, output_path):
             {badge('home','1',val)}
             {badge('draw','X',val)}
             {badge('away','2',val)}
+          </div>
+          <div class="stitle">⚽ Goles esperados y mercados alternativos</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.8rem">
+            <div style="background:rgba(255,255,255,.03);border-radius:8px;padding:.8rem">
+              <div style="font-size:.68rem;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Over / Under</div>
+              <div style="font-size:.78rem;display:flex;flex-direction:column;gap:.3rem">
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--mut)">+1.5 goles</span>
+                  <span style="font-family:IBM Plex Mono,monospace;color:var(--acc)">{pred.get('p_over15',0)*100:.1f}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:{'var(--ylw)' if pred.get('p_over25',0)>0.55 else 'var(--mut)'}"><strong>+2.5 goles</strong></span>
+                  <span style="font-family:IBM Plex Mono,monospace;color:{'var(--ylw)' if pred.get('p_over25',0)>0.55 else 'var(--acc)'};font-weight:{'600' if pred.get('p_over25',0)>0.55 else '400'}">{pred.get('p_over25',0)*100:.1f}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--mut)">-2.5 goles</span>
+                  <span style="font-family:IBM Plex Mono,monospace;color:var(--acc)">{pred.get('p_under25',0)*100:.1f}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--mut)">+3.5 goles</span>
+                  <span style="font-family:IBM Plex Mono,monospace;color:var(--acc)">{pred.get('p_over35',0)*100:.1f}%</span>
+                </div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,.03);border-radius:8px;padding:.8rem">
+              <div style="font-size:.68rem;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Ambos Anotan (BTTS)</div>
+              <div style="font-size:.78rem;display:flex;flex-direction:column;gap:.3rem">
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:{'var(--grn)' if pred.get('p_btts_yes',0)>0.5 else 'var(--mut)'}"><strong>SÍ anotan ambos</strong></span>
+                  <span style="font-family:IBM Plex Mono,monospace;color:{'var(--grn)' if pred.get('p_btts_yes',0)>0.5 else 'var(--acc)'};font-weight:{'600' if pred.get('p_btts_yes',0)>0.5 else '400'}">{pred.get('p_btts_yes',0)*100:.1f}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--mut)">NO anotan ambos</span>
+                  <span style="font-family:IBM Plex Mono,monospace;color:var(--acc)">{pred.get('p_btts_no',0)*100:.1f}%</span>
+                </div>
+                <div style="margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--bord)">
+                  <div style="display:flex;justify-content:space-between">
+                    <span style="color:var(--mut)">Goles esperados total</span>
+                    <span style="font-family:IBM Plex Mono,monospace;color:var(--ylw)">{pred.get('exp_goals_total',0):.2f}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="stitle">📈 Forma reciente (últimos {FORM_MATCHES} partidos)</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.5rem">
@@ -1525,6 +1626,8 @@ if __name__ == '__main__':
         print(f"    Forma {fix['home_api'][:15]}: {''.join(f_home['form'])} ({f_home.get('pts_pg','?')} pts/j)")
         print(f"    Forma {fix['away_api'][:15]}: {''.join(f_away['form'])} ({f_away.get('pts_pg','?')} pts/j)")
         print(f"    Modelo → 1:{pred['p_home']*100:.1f}%  X:{pred['p_draw']*100:.1f}%  2:{pred['p_away']*100:.1f}%")
+        print(f"    O/U    → +1.5:{pred.get('p_over15',0)*100:.1f}%  +2.5:{pred.get('p_over25',0)*100:.1f}%  -2.5:{pred.get('p_under25',0)*100:.1f}%  Goles esp:{pred.get('exp_goals_total',0):.2f}")
+        print(f"    BTTS   → Sí:{pred.get('p_btts_yes',0)*100:.1f}%  No:{pred.get('p_btts_no',0)*100:.1f}%")
         if fix['odds']['home']:
             print(f"    Cuotas ({fix['odds_source']}) → 1:{fix['odds']['home']}  "
                   f"X:{fix['odds']['draw']}  2:{fix['odds']['away']}")
