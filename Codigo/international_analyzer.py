@@ -77,13 +77,15 @@ TEAM_WHITELIST = {
 }
 N_SIM           = 100_000   # simulaciones Monte Carlo
 
-# Filtros value bet (calibrados para selecciones)
-VALUE_THRESH_HOME = 0.07    # local más estricto
-VALUE_THRESH_AWAY = 0.04    # visitante estándar
-DRAW_ENABLED      = False   # empates desactivados igual que J-League
-FORM_MATCHES      = 8       # últimos 8 partidos (selecciones juegan menos)
-FORM_MIN_PTS_HOME = 1.3
-FORM_MIN_PTS_AWAY = 1.0
+# Filtros value bet — calibrados con backtest internacional
+# RESULTADO BACKTEST: Local +5.4% ROI ✅ | Visitante -12.3% ❌
+# → Solo apostar locales con value + buena forma
+VALUE_THRESH_HOME = 0.05    # local: umbral más bajo (ROI positivo histórico)
+VALUE_THRESH_AWAY = 0.99    # visitante: DESACTIVADO (ROI -12.3% histórico)
+DRAW_ENABLED      = False   # empates desactivados
+FORM_MATCHES      = 8       # últimos 8 partidos
+FORM_MIN_PTS_HOME = 1.3     # local debe tener buena forma
+FORM_MIN_PTS_AWAY = 1.0     # visitante desactivado de todas formas
 
 # Pesos por tipo de torneo
 TOURNAMENT_WEIGHTS = {
