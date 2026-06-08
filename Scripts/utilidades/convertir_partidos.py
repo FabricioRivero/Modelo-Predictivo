@@ -10,7 +10,11 @@ Output: partidos_convertidos.csv      (date YYYY-MM-DD, nombres en inglés)
 """
 
 import pandas as pd
-import os
+import os, sys
+
+# ── Cargar configuración central ──────────────────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Config'))
+from config import PARTIDOS_INTL_CSV, PARTIDOS_CONV_CSV
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -293,8 +297,8 @@ def convertir(input_path, output_path):
     return out
 
 if __name__ == '__main__':
-    inp = os.path.join(BASE, 'partidos_internacionales.csv')
-    out = os.path.join(BASE, 'partidos_convertidos.csv')
+    inp = PARTIDOS_INTL_CSV
+    out = PARTIDOS_CONV_CSV
     if not os.path.exists(inp):
         print(f"❌ No encontrado: {inp}")
     else:

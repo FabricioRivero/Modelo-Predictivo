@@ -24,21 +24,39 @@ from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
+# ── Cargar configuración central ──────────────────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Config'))
+from config import (
+    JPN_CSV, BACKTEST_REPORT_HTML, BACKTEST_CSV,
+    XI_JLEAGUE, N_SIM_JLEAGUE,
+    VT_HOME_JLEAGUE, VT_AWAY_JLEAGUE,
+    FORM_MIN_HOME_JLEAGUE, FORM_MIN_AWAY_JLEAGUE,
+    DRAW_ENABLED_JLEAGUE,
+    ensure_dirs,
+)
+ensure_dirs()
+
 # ─────────────────────────────────────────────────────────────
 # CONFIGURACIÓN
 # ─────────────────────────────────────────────────────────────
-BASE        = r"D:\MODELO DE PREDICCION\Codigo"
-CSV_FILE    = "JPN.csv"
-OUTPUT_HTML = os.path.join(BASE, "backtest_report.html")
-OUTPUT_CSV  = os.path.join(BASE, "backtest_results.csv")
+BASE        = os.path.dirname(os.path.abspath(JPN_CSV))
+CSV_FILE    = JPN_CSV
+OUTPUT_HTML = BACKTEST_REPORT_HTML
+OUTPUT_CSV  = BACKTEST_CSV
 
 # Años de entrenamiento inicial y test
-TRAIN_UNTIL = 2022   # entrena con datos hasta este año (inclusive)
-TEST_FROM   = 2023   # testea desde este año
-XI          = 0.00325  # time decay
-MIN_TRAIN   = 500    # mínimo partidos para entrenar
-N_SIM       = 50_000 # simulaciones MC (50k para velocidad en backtest)
-VALUE_THRESH = 0.03  # umbral de value bet (3%)
+TRAIN_UNTIL = 2022
+TEST_FROM   = 2023
+XI          = XI_JLEAGUE
+MIN_TRAIN   = 500
+N_SIM       = N_SIM_JLEAGUE
+
+# Umbrales diferenciados (backtest: visitante +11.2% ✅, local -9.2% ❌)
+VALUE_THRESH_HOME = VT_HOME_JLEAGUE
+VALUE_THRESH_AWAY = VT_AWAY_JLEAGUE
+FORM_MIN_PTS_HOME = FORM_MIN_HOME_JLEAGUE
+FORM_MIN_PTS_AWAY = FORM_MIN_AWAY_JLEAGUE
+DRAW_ENABLED      = DRAW_ENABLED_JLEAGUE
 
 # ─────────────────────────────────────────────────────────────
 # BLOQUE 1: CARGA DE DATOS

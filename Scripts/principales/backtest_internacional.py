@@ -26,29 +26,43 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import poisson
-import os, warnings
+import os, sys, warnings
 from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
+# ── Cargar configuración central ──────────────────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Config'))
+from config import (
+    RESULTS_CSV, PATCH_2026_CSV, PARTIDOS_CONV_CSV,
+    INTL_BACKTEST_HTML, INTL_BACKTEST_CSV, INTL_DIR,
+    FIFA_RANKING_CANDIDATES,
+    XI_INTL, N_SIM_INTL,
+    VT_HOME_INTL, VT_AWAY_INTL,
+    FORM_MIN_HOME_INTL, FORM_MIN_AWAY_INTL,
+    DRAW_ENABLED_INTL,
+    ensure_dirs,
+)
+ensure_dirs()
+
 # ══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ══════════════════════════════════════════════════════════════
-BASE         = r"D:\MODELO DE PREDICCION\Codigo"
-OUTPUT_HTML  = os.path.join(BASE, "backtest_intl_report.html")
-OUTPUT_CSV   = os.path.join(BASE, "backtest_intl_results.csv")
+BASE         = INTL_DIR
+OUTPUT_HTML  = INTL_BACKTEST_HTML
+OUTPUT_CSV   = INTL_BACKTEST_CSV
 
-TRAIN_FROM_YEAR = 2010   # datos desde 2010
-TEST_FROM_YEAR  = 2022   # testear desde 2022
-XI              = 0.00180
-MIN_TRAIN       = 300    # mínimo partidos para entrenar
-N_SIM           = 30_000 # simulaciones (30k para velocidad en backtest)
+TRAIN_FROM_YEAR = 2010
+TEST_FROM_YEAR  = 2022
+XI              = XI_INTL
+MIN_TRAIN       = 300
+N_SIM           = 30_000   # 30k para velocidad en backtest
 
-# Umbrales value bet (mismos que en el analyzer)
-VALUE_THRESH_HOME = 0.07
-VALUE_THRESH_AWAY = 0.04
-DRAW_ENABLED      = False
-FORM_MIN_PTS_HOME = 1.3
+# Umbrales (calibrados con backtest: local +5.4%, visitante DESACTIVADO -12.3%)
+VALUE_THRESH_HOME = VT_HOME_INTL
+VALUE_THRESH_AWAY = VT_AWAY_INTL
+DRAW_ENABLED      = DRAW_ENABLED_INTL
+FORM_MIN_PTS_HOME = FORM_MIN_HOME_INTL
 FORM_MIN_PTS_AWAY = 1.0
 
 # ══════════════════════════════════════════════════════════════
@@ -139,11 +153,13 @@ FIFA_NAME_MAP = {
 
 FIFA_RANKING = {}
 
-def load_fifa_ranking(base_path):
-    candidates = ['ranking_fifa.csv','fifa_mens_rank.csv',
-                  'fifa_ranking-2024-06-20.csv','fifa_ranking-2024-04-04.csv']
-    for fname in candidates:
-        path = os.path.join(base_path, fname)
+def load_fifa_ranking(base_path=None):
+    candidates = FIFA_RANKING_CANDIDATES
+    if base_path:
+        local = [os.path.join(base_path, f) for f in
+                 ['ranking_fifa.csv','fifa_mens_rank.csv']]
+        candidates = local + list(candidates)
+    for path in candidates:
         if not os.path.exists(path):
             continue
         try:
@@ -172,9 +188,9 @@ def get_fifa_prior(team):
 # ══════════════════════════════════════════════════════════════
 # CARGA DE DATOS
 # ══════════════════════════════════════════════════════════════
-def load_all_data(base_path):
+def load_all_data(base_path=None):
     # 1. results.csv (Kaggle)
-    path = os.path.join(base_path, 'results.csv')
+    path = RESULTS_CSV
     df = pd.read_csv(path, encoding='utf-8-sig', low_memory=False)
     df.columns = [c.strip().lower().replace(' ','_') for c in df.columns]
     for old, new in [('home_score','home_goals'),('away_score','away_goals')]:
@@ -193,8 +209,7 @@ def load_all_data(base_path):
     df = df[df['year'] >= TRAIN_FROM_YEAR].copy()
 
     # 2. Parches
-    for fname in ['partidos_convertidos.csv', 'results_2026_patch.csv']:
-        fpath = os.path.join(base_path, fname)
+    for fpath in [PARTIDOS_CONV_CSV, PATCH_2026_CSV]:
         if not os.path.exists(fpath): continue
         try:
             p = pd.read_csv(fpath, encoding='utf-8-sig', low_memory=False)
@@ -711,11 +726,11 @@ if __name__ == '__main__':
     print("=" * 65)
 
     print("\n🏆 Cargando ranking FIFA...")
-    load_fifa_ranking(BASE)
+    load_fifa_ranking()
     print(f"  ✓ {len(FIFA_RANKING)} selecciones en ranking")
 
     print(f"\n📂 Cargando datos históricos...")
-    df = load_all_data(BASE)
+    df = load_all_data()
 
     print(f"\n⏳ Ejecutando backtest walk-forward...")
     print(f"   Entrenamiento:  {TRAIN_FROM_YEAR} – {TEST_FROM_YEAR-1}")

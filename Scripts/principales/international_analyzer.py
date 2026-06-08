@@ -29,21 +29,41 @@ from datetime import datetime, timedelta, timezone
 
 warnings.filterwarnings('ignore')
 
+# ── Cargar configuración central ──────────────────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Config'))
+from config import (
+    RESULTS_CSV, PATCH_2026_CSV, PARTIDOS_CONV_CSV, CUOTAS_HOY_CSV,
+    INTL_REPORT_HTML, INTL_DIR,
+    FIFA_RANKING_CANDIDATES,
+    API_KEY_ODDS, API_KEY_FOOTBALL,
+    XI_INTL, N_SIM_INTL, FORM_MATCHES_INTL, TRAIN_FROM_INTL,
+    VT_HOME_INTL, VT_AWAY_INTL,
+    FORM_MIN_HOME_INTL, FORM_MIN_AWAY_INTL,
+    DRAW_ENABLED_INTL,
+    ensure_dirs,
+)
+ensure_dirs()
+
 # ══════════════════════════════════════════════════════════════
 # ── CONFIGURACIÓN ─────────────────────────────────────────────
 # ══════════════════════════════════════════════════════════════
-BASE         = r"D:\MODELO DE PREDICCION\Codigo"
-RESULTS_CSV  = "results.csv"
-NAMES_CSV    = "former_names.csv"
-OUTPUT_HTML  = os.path.join(BASE, "international_report.html")
+BASE         = INTL_DIR
+RESULTS_CSV_PATH = RESULTS_CSV
+NAMES_CSV    = os.path.join(INTL_DIR, "former_names.csv")
+OUTPUT_HTML  = INTL_REPORT_HTML
 
-API_KEY_ODDS     = "07fed81a038a0eb0b8c6c4abedcdcd35"  # The Odds API → cuotas Pinnacle
-API_KEY_FOOTBALL = "f7de0f5bd4e48491c6e02aefa322d67a"  # API-Football  → convocados/lesionados
+XI              = XI_INTL
+TRAIN_FROM_YEAR = TRAIN_FROM_INTL
+MIN_MATCHES     = 10
+N_SIM           = N_SIM_INTL
+FORM_MATCHES    = FORM_MATCHES_INTL
 
-# Parámetros del modelo
-XI              = 0.00180   # time decay más suave (selecciones juegan menos)
-TRAIN_FROM_YEAR = 2010      # solo usar datos desde 2010 (fútbol moderno)
-MIN_MATCHES     = 10        # mínimo partidos (respaldo para equipos no en TEAM_WHITELIST)
+# Umbrales value bet (calibrados con backtest internacional)
+VALUE_THRESH_HOME = VT_HOME_INTL    # local +5.4% ROI ✅
+VALUE_THRESH_AWAY = VT_AWAY_INTL    # visitante DESACTIVADO -12.3% ❌
+DRAW_ENABLED      = DRAW_ENABLED_INTL
+FORM_MIN_PTS_HOME = FORM_MIN_HOME_INTL
+FORM_MIN_PTS_AWAY = FORM_MIN_AWAY_INTL
 
 # Lista fija de selecciones a modelar (las que el usuario quiere cubrir)
 TEAM_WHITELIST = {
@@ -132,8 +152,10 @@ def get_tournament_weight(tournament_name):
 # ══════════════════════════════════════════════════════════════
 # BLOQUE 1 — CARGA Y PREPARACIÓN DE DATOS
 # ══════════════════════════════════════════════════════════════
-def load_results(base_path):
-    path = os.path.join(base_path, RESULTS_CSV)
+def load_results(base_path=None):
+    if base_path is None:
+        base_path = INTL_DIR
+    path = RESULTS_CSV_PATH
     if not os.path.exists(path):
         raise FileNotFoundError(f"No encontrado: {path}\n"
                                 f"Descarga results.csv de:\n"
@@ -196,8 +218,8 @@ def load_results(base_path):
 
     # ── Cargar fuentes de parche adicionales (en orden de prioridad) ──
     patch_sources = [
-        ('partidos_convertidos.csv',  'Scraper 2025-2026 (convertido)'),
-        ('results_2026_patch.csv',    'Parche manual 2026'),
+        (PARTIDOS_CONV_CSV,  'Scraper 2025-2026 (convertido)'),
+        (PATCH_2026_CSV,     'Parche manual 2026'),
     ]
     total_added = 0
     for patch_file, label in patch_sources:
@@ -359,17 +381,15 @@ FIFA_NAME_MAP = {
     'Bosnia & Herzegovina':      'Bosnia and Herzegovina',
 }
 
-def load_fifa_ranking(base_path):
-    """Carga ranking FIFA desde CSV. Devuelve dict: team → rank"""
-    candidates = [
-        'ranking_fifa.csv',
-        'fifa_mens_rank.csv',
-        'fifa_ranking-2024-06-20.csv',
-        'fifa_ranking-2024-04-04.csv',
-        'fifa_ranking-2023-07-20.csv',
-    ]
-    for fname in candidates:
-        path = os.path.join(base_path, fname)
+def load_fifa_ranking(base_path=None):
+    """Carga ranking FIFA desde CSV usando los candidatos de config.py"""
+    candidates_paths = FIFA_RANKING_CANDIDATES
+    # Añadir también búsqueda en base_path local si se provee
+    if base_path:
+        local = [os.path.join(base_path, f) for f in
+                 ['ranking_fifa.csv','fifa_mens_rank.csv','fifa_ranking-2024-06-20.csv']]
+        candidates_paths = local + candidates_paths
+    for path in candidates_paths:
         if not os.path.exists(path):
             continue
         try:
@@ -1442,11 +1462,11 @@ if __name__ == '__main__':
 
     # 0. Cargar ranking FIFA real desde CSV
     print(f"\n🏆 Cargando ranking FIFA...")
-    FIFA_RANKING.update(load_fifa_ranking(BASE))
+    FIFA_RANKING.update(load_fifa_ranking())
 
     # 1. Cargar datos
-    print(f"\n📂 Cargando {RESULTS_CSV}...")
-    df = load_results(BASE)
+    print(f"\n📂 Cargando {os.path.basename(RESULTS_CSV_PATH)}...")
+    df = load_results()
 
     # 2. Entrenar modelo
     print(f"\n⏳ Ajustando Dixon-Coles ({df['year'].min()}–{df['year'].max()})...")
@@ -1507,7 +1527,7 @@ if __name__ == '__main__':
     def map_scraper_name(n):
         return SCRAPER_NAME_MAP.get(n, n)
 
-    cuotas_csv = os.path.join(BASE, 'cuotas_hoy.csv')
+    cuotas_csv = CUOTAS_HOY_CSV
     cuotas_dict = {}  # (home, away) → {home, draw, away, source}
     now_utc = datetime.now(timezone.utc)
 

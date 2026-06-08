@@ -18,20 +18,40 @@ from scipy.stats import poisson
 import json, os, sys
 from datetime import datetime, timedelta, timezone
 
+# ── Cargar configuración central ──────────────────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Config'))
+from config import (
+    JPN_CSV, J1_STATS_CSV, JLEAGUE_REPORT_HTML,
+    API_KEY_ODDS,
+    XI_JLEAGUE, N_SIM_JLEAGUE, FORM_MATCHES_JLEAGUE, FORM_BOOST_JLEAGUE,
+    VT_HOME_JLEAGUE, VT_AWAY_JLEAGUE,
+    FORM_MIN_HOME_JLEAGUE, FORM_MIN_AWAY_JLEAGUE,
+    DRAW_ENABLED_JLEAGUE,
+    ensure_dirs,
+)
+ensure_dirs()
+
 # ══════════════════════════════════════════════════════════════
 # ── CONFIGURACIÓN ─────────────────────────────────────────────
 # ══════════════════════════════════════════════════════════════
-BASE         = r"D:\MODELO DE PREDICCION\Codigo"
-API_KEY      = "07fed81a038a0eb0b8c6c4abedcdcd35"
-CSV_FILE     = "JPN.csv"
-PLAYERS_CSV  = "J1_League_Player_Stats_2022_2025.csv"
-OUTPUT_HTML  = os.path.join(BASE, "jleague_report.html")
+BASE         = os.path.dirname(os.path.abspath(JPN_CSV))   # Datos/jleague/
+API_KEY      = API_KEY_ODDS
+CSV_FILE     = JPN_CSV
+PLAYERS_CSV  = J1_STATS_CSV
+OUTPUT_HTML  = JLEAGUE_REPORT_HTML
 
-XI            = 0.00325   # time decay global
-FORM_MATCHES  = 6         # partidos recientes con peso extra
-FORM_BOOST    = 2.5       # multiplicador de peso para forma reciente
-VALUE_THRESH  = 0.03      # umbral value bet (3%)
-N_SIM         = 100_000   # simulaciones Monte Carlo
+XI            = XI_JLEAGUE
+FORM_MATCHES  = FORM_MATCHES_JLEAGUE
+FORM_BOOST    = FORM_BOOST_JLEAGUE
+VALUE_THRESH  = 0.03      # umbral base (los umbrales diferenciados están abajo)
+N_SIM         = N_SIM_JLEAGUE
+
+# Umbrales diferenciados (calibrados con backtest)
+VALUE_THRESH_HOME = VT_HOME_JLEAGUE   # +8% — ROI local era -9.2%
+VALUE_THRESH_AWAY = VT_AWAY_JLEAGUE   # +4% — ROI visitante +11.2%
+DRAW_ENABLED      = DRAW_ENABLED_JLEAGUE
+FORM_MIN_PTS_HOME = FORM_MIN_HOME_JLEAGUE
+FORM_MIN_PTS_AWAY = FORM_MIN_AWAY_JLEAGUE
 
 
 # ══════════════════════════════════════════════════════════════

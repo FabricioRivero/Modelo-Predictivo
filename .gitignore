@@ -1,29 +1,59 @@
-# ── Reportes generados automáticamente ──
-Codigo/international_report.html
-Codigo/jleague_report.html
-Codigo/backtest_report.html
-Codigo/backtest_results.csv
+# ══════════════════════════════════════════════════════════════
+# .gitignore — Modelo Predictivo de Fútbol
+# ══════════════════════════════════════════════════════════════
 
-# ── Archivos temporales del scraper ──
-Codigo/parcial_*.csv
-Codigo/debug_*.html
-
-# ── Páginas guardadas de casas de apuestas ──
-Codigo/bet365*/
-Codigo/*.html
-!Codigo/README.md
-
-# ── Scripts de debug/test ──
-Codigo/test_*.py
-Codigo/buscar_urls.py
-
-# ── Entorno virtual Python ──
-Codigo/.venv/
+# ── Entorno virtual Python ────────────────────────────────────
 .venv/
+venv/
+env/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.egg-info/
+.Python
+pip-log.txt
 
-# ── OS ──
+# ── Reportes generados automáticamente ───────────────────────
+# Se regeneran ejecutando los scripts — no versionar
+Reportes/*.html
+Reportes/*.csv
+!Reportes/.gitkeep
+
+# ── Datos generados/temporales por scrapers ───────────────────
+Datos/internacional/cuotas_hoy.csv
+Datos/internacional/partidos_convertidos.csv
+Datos/internacional/debug*.html
+Datos/internacional/debug*.csv
+Datos/internacional/parcial_*.csv
+
+# ── Perfiles del navegador (Selenium/Playwright) ──────────────
+brave_profile*/
+browser_profile*/
+*_profile_*/
+*_profile/
+fbref_html/
+Scripts/scrapers/brave_profile*/
+Scripts/scrapers/browser_profile*/
+
+# ── Credenciales y cookies ────────────────────────────────────
+cookies_cf.json
+*.json
+!package.json
+
+# ── Archivos de debug ─────────────────────────────────────────
+debug.html
+debug_*.html
+debug_*.csv
+*.log
+logs/
+
+# ── Carpeta Codigo/ (antigua — vacía, mantenida solo para compatibilidad) ──
+Codigo/
+
+# ── OS ────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
+*.swo
