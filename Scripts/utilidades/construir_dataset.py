@@ -115,7 +115,7 @@ NOMBRES_ESTANDAR = {
     'USA':'United States','US':'United States',
     'Czechia':'Czech Republic','Bosnia & Herzegovina':'Bosnia and Herzegovina',
     'Cape Verde Islands':'Cape Verde','Cape Verde Isl.':'Cape Verde',
-    'Ivory Coast':"Ivory Coast','Cote d'Ivoire":'Ivory Coast',
+    'Ivory Coast':'Ivory Coast',
     'Trinidad & Tobago':'Trinidad and Tobago',
     'Curacao':'Curacao',
 }
