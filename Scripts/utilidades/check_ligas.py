@@ -27,7 +27,7 @@ GRUPOS = {
     'B': ['Canada',        'Bosnia and Herzegovina', 'Qatar',        'Switzerland'],
     'C': ['Brazil',        'Morocco',               'Haiti',        'Scotland'],
     'D': ['United States', 'Paraguay',              'Australia',    'Turkey'],
-    'E': ['Germany',       'Curacao',               'Ivory Coast',  'Ecuador'],
+    'E': ['Germany',       'Curaçao',               'Ivory Coast',  'Ecuador'],
     'F': ['Netherlands',   'Japan',                 'Sweden',       'Tunisia'],
     'G': ['Belgium',       'Egypt',                 'Iran',         'New Zealand'],
     'H': ['Spain',         'Cape Verde',            'Saudi Arabia', 'Uruguay'],
@@ -59,9 +59,21 @@ def cargar_datos():
     return df
 
 
+def buscar_equipo(df, equipo):
+    """Busca partidos de un equipo con nombre flexible (ignora tildes y mayúsculas)."""
+    import unicodedata
+    def normalizar(s):
+        s = str(s).strip().lower()
+        return ''.join(c for c in unicodedata.normalize('NFD', s)
+                       if unicodedata.category(c) != 'Mn')
+    equipo_norm = normalizar(equipo)
+    mask = (df['home_team'].apply(normalizar) == equipo_norm) | \
+           (df['away_team'].apply(normalizar) == equipo_norm)
+    return df[mask]
+
+
 def stats_equipo(df, equipo):
-    mask = (df['home_team'] == equipo) | (df['away_team'] == equipo)
-    sub  = df[mask]
+    sub = buscar_equipo(df, equipo)
     if len(sub) == 0:
         return None
 

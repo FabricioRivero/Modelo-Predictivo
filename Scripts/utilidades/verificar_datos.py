@@ -107,7 +107,14 @@ def cargar_todos_los_datos():
 
 
 def verificar_equipo(df, equipo, n=10):
-    mask = (df['home_team'] == equipo) | (df['away_team'] == equipo)
+    import unicodedata
+    def normalizar(s):
+        s = str(s).strip().lower()
+        return ''.join(c for c in unicodedata.normalize('NFD', s)
+                       if unicodedata.category(c) != 'Mn')
+    equipo_norm = normalizar(equipo)
+    mask = (df['home_team'].apply(normalizar) == equipo_norm) | \
+           (df['away_team'].apply(normalizar) == equipo_norm)
     sub  = df[mask].tail(n).copy()
 
     if len(sub) == 0:

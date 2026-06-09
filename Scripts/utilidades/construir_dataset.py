@@ -110,14 +110,46 @@ NOMBRES_ESTANDAR = {
     'Singapur':'Singapore','Indonesia':'Indonesia',
     'Malaui':'Malawi','Eswatini':'Eswatini',
     'Lesoto':'Lesotho','Guinea Ecuatorial':'Equatorial Guinea',
-    # Variantes inglés → estándar
+    # Variantes inglés → estándar (con tildes, símbolos, abreviaturas)
     'Korea Republic':'South Korea','Republic of Korea':'South Korea',
     'USA':'United States','US':'United States',
-    'Czechia':'Czech Republic','Bosnia & Herzegovina':'Bosnia and Herzegovina',
+    'Czechia':'Czech Republic',
+    'Bosnia & Herzegovina':'Bosnia and Herzegovina',
+    'Bosnia & Herzegowina':'Bosnia and Herzegovina',
     'Cape Verde Islands':'Cape Verde','Cape Verde Isl.':'Cape Verde',
-    'Ivory Coast':'Ivory Coast',
+    'Islas de Cabo Verde':'Cape Verde',
     'Trinidad & Tobago':'Trinidad and Tobago',
+    # Curaçao — todas las variantes posibles
+    'Curaçao':'Curacao',     # con tilde francesa (la más común en datos FIFA)
+    'Curaçao':'Curacao',
     'Curacao':'Curacao',
+    'Curazao':'Curacao',     # español
+    # República Checa variantes
+    'Czech Rep.':'Czech Republic',
+    'Czechia':'Czech Republic',
+    # Corea del Sur variantes
+    'Korea DPR':'North Korea',  # para no confundir
+    'Republic of Korea':'South Korea',
+    'Korea Rep.':'South Korea',
+    # Ivory Coast variantes
+    "Côte d'Ivoire":'Ivory Coast',
+    "Cote d'Ivoire":'Ivory Coast',
+    'Cote dIvoire':'Ivory Coast',
+    # RD Congo variantes
+    'Congo, DR':'DR Congo',
+    'Congo DR':'DR Congo',
+    'DRC':'DR Congo',
+    'Democratic Republic of Congo':'DR Congo',
+    # Iran variantes
+    'IR Iran':'Iran',
+    'Islamic Republic of Iran':'Iran',
+    # Estados Unidos variantes
+    'United States of America':'United States',
+    # Otros con tildes que pueden aparecer en datos FIFA
+    'Türkiye':'Turkey',
+    'Österreich':'Austria',
+    'Sint Maarten':'Sint Maarten',
+    'Curaçao':'Curacao',
 }
 
 # ══════════════════════════════════════════════════════════════
