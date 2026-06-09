@@ -407,6 +407,7 @@ def load_fifa_ranking(base_path=None):
                     ranking[name] = int(row['rank'])
                 yr = int(df['date'].max())
                 sem = int(latest['semester'].iloc[0])
+                fname = os.path.basename(path)
                 print(f"  ✓ Ranking FIFA: {len(ranking)} selecciones "
                       f"(año {yr} sem {sem} — {fname})")
                 return ranking
@@ -418,15 +419,16 @@ def load_fifa_ranking(base_path=None):
                     name = FIFA_NAME_MAP.get(str(row['country_full']).strip(),
                                              str(row['country_full']).strip())
                     ranking[name] = int(row['rank'])
+                fname = os.path.basename(path)
                 print(f"  ✓ Ranking FIFA: {len(ranking)} selecciones "
                       f"(fecha {df['rank_date'].max()} — {fname})")
                 return ranking
         except Exception as e:
+            fname = os.path.basename(path)
             print(f"  ⚠ Error leyendo {fname}: {e}")
     # Debug: mostrar qué buscó
-    print(f"  ℹ Buscado en: {base_path}")
-    for fname in candidates:
-        p = os.path.join(base_path, fname)
+    print(f"  ℹ Archivos buscados:")
+    for p in candidates_paths:
         print(f"    {'✓' if os.path.exists(p) else '✗'} {p}")
     print("  ⚠ CSV ranking FIFA no encontrado — usando fallback hardcodeado")
     return {
