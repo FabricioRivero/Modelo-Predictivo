@@ -1,16 +1,17 @@
 """
 construir_dataset.py — Construye el dataset maestro limpio
 ============================================================
-Une las 3 fuentes de datos, limpia y exporta un CSV único
+Une TODAS las fuentes de datos, limpia y exporta un CSV único
 listo para usar en el modelo Dixon-Coles.
 
-Fuentes:
-  1. results.csv              ← Kaggle martj42 (1872-2026)
-  2. partidos_convertidos.csv ← Scraper soccerway (jun 2025-hoy)
-  3. results_2026_patch.csv   ← Parche manual
+Fuentes (en orden de prioridad — el parche tiene la última palabra):
+  1. base_datos_selecciones_limpia2.csv ← Dataset externo (50,314 filas)
+  2. results.csv                        ← Kaggle martj42 (1872-2026)
+  3. partidos_convertidos.csv           ← Scraper soccerway (jun 2025-hoy)
+  4. results_2026_patch.csv             ← Parche manual (máxima prioridad)
 
 Output:
-  Datos/internacional/base_datos_limpia.csv ← Dataset maestro
+  Datos/internacional/base_datos_maestra.csv ← Dataset maestro final
 
 Uso:
     python Scripts/utilidades/construir_dataset.py
@@ -26,7 +27,10 @@ if config_dir not in sys.path:
     sys.path.insert(0, config_dir)
 from config import RESULTS_CSV, PATCH_2026_CSV, PARTIDOS_CONV_CSV, INTL_DIR
 
-OUTPUT_CSV = os.path.join(INTL_DIR, 'base_datos_limpia.csv')
+# Dataset externo (50,314 filas — mismas columnas que results.csv)
+LIMPIA2_CSV = os.path.join(INTL_DIR, 'base_datos_selecciones_limpia2.csv')
+
+OUTPUT_CSV  = os.path.join(INTL_DIR, 'base_datos_maestra.csv')
 
 # Palabras que indican selecciones NO mayores masculinas
 PALABRAS_EXCLUIR = [
@@ -42,17 +46,21 @@ PALABRAS_EXCLUIR = [
 
 def cargar_fuentes():
     fuentes = {}
-    for nombre, ruta in [
+    # Orden: del menos al más prioritario
+    # El parche va ÚLTIMO para tener prioridad en deduplicación (keep='last')
+    fuentes_config = [
+        ('Base externa (limpia2)',              LIMPIA2_CSV),
         ('Kaggle (results.csv)',                RESULTS_CSV),
         ('Scraper (partidos_convertidos.csv)',  PARTIDOS_CONV_CSV),
         ('Parche manual (results_2026_patch)',  PATCH_2026_CSV),
-    ]:
+    ]
+    for nombre, ruta in fuentes_config:
         if os.path.exists(ruta):
             df = pd.read_csv(ruta, encoding='utf-8-sig', low_memory=False)
             fuentes[nombre] = df
-            print(f"  ✓ {nombre}: {len(df):,} partidos")
+            print(f"  ✓ {nombre:<42} {len(df):>7,} filas")
         else:
-            print(f"  ⚠ No encontrado: {ruta}")
+            print(f"  ⚠ No encontrado: {os.path.basename(ruta)}")
     return fuentes
 
 
@@ -130,18 +138,17 @@ def estadisticas(df):
 
 
 def main():
-    print("=" * 60)
-    print("  CONSTRUIR DATASET MAESTRO")
-    print("  Fuentes: Kaggle + Scraper + Parche manual")
-    print("=" * 60)
+    print("=" * 65)
+    print("  CONSTRUIR DATASET MAESTRO — 4 fuentes combinadas")
+    print("=" * 65)
 
-    print(f"\n📂 Cargando fuentes...")
+    print(f"\n📂 Cargando fuentes (menor → mayor prioridad)...")
     fuentes = cargar_fuentes()
     if not fuentes:
         print("❌ Sin fuentes.")
         return
 
-    print(f"\n🔧 Normalizando...")
+    print(f"\n🔧 Normalizando columnas...")
     dfs = [normalizar(df) for df in fuentes.values()]
     df_total = pd.concat(dfs, ignore_index=True)
     print(f"  Total antes de limpiar: {len(df_total):,}")
@@ -151,9 +158,26 @@ def main():
 
     estadisticas(df_clean)
 
-    df_clean.to_csv(OUTPUT_CSV, index=False, encoding='utf-8-sig')
-    print(f"\n✅ Dataset guardado en: {OUTPUT_CSV}")
-    print(f"   {len(df_clean):,} partidos listos para el modelo")
+    # Columnas finales estándar
+    cols_out = ['date', 'home_team', 'away_team',
+                'home_goals', 'away_goals', 'tournament',
+                'neutral']
+    cols_extra = ['city', 'country']
+    for c in cols_extra:
+        if c in df_clean.columns:
+            cols_out.append(c)
+
+    df_out = df_clean[[c for c in cols_out if c in df_clean.columns]].copy()
+    df_out['date'] = df_out['date'].dt.strftime('%Y-%m-%d')
+    df_out.to_csv(OUTPUT_CSV, index=False, encoding='utf-8-sig')
+
+    print(f"\n{'='*65}")
+    print(f"  ✅ Dataset maestro guardado:")
+    print(f"     {OUTPUT_CSV}")
+    print(f"     {len(df_out):,} partidos · columnas: {list(df_out.columns)}")
+    print(f"\n  Para usarlo en el modelo, actualiza Config/config.py:")
+    print(f"     RESULTS_CSV = os.path.join(INTL_DIR, 'base_datos_maestra.csv')")
+    print(f"{'='*65}")
 
 
 if __name__ == '__main__':
