@@ -296,6 +296,33 @@ def etl_completo(df):
     df['tournament'] = df['tournament'].apply(estandarizar_torneo)
     print(f"  [5] Torneos estandarizados:    {len(df):>7,}")
 
+    # PASO 5b: Re-filtrar torneos no válidos DESPUÉS de estandarizar
+    TORNEOS_EXCLUIR = [
+        'CHAN',           # Campeonato Africano de Naciones — selección B
+        'Arab Cup',       # Copa Árabe
+        'Gulf Cup',       # Copa del Golfo
+        'King Cup',       # Copa del Rey tailandesa
+        'Peace Cup',
+        'COSAFA',
+        'CECAFA',
+        'WAFU',
+        'EAFF',
+        'SAFF',
+        'AFF Championship',
+    ]
+    patron_torneos = '|'.join(TORNEOS_EXCLUIR)
+    m_tourn = df['tournament'].astype(str).str.contains(patron_torneos, case=False, na=False)
+    df = df[~m_tourn]
+    print(f"  [5b] Sin torneos no-absolutos:  {len(df):>7,}")
+
+    # PASO 5c: Eliminar amistosos excesivos (mismo equipo, mismo rival, mismo mes)
+    # Si hay más de 2 partidos entre mismo par en el mismo mes → keep solo los 2 primeros
+    df['month_key'] = df['date'].dt.to_period('M')
+    df['pair'] = df.apply(lambda r: tuple(sorted([r['home_team'],r['away_team']])), axis=1)
+    counts = df.groupby(['month_key','pair']).cumcount()
+    df = df[counts < 2].drop(columns=['month_key','pair'])
+    print(f"  [5c] Sin amistosos excesivos:   {len(df):>7,}")
+
     # PASO 6: Limpiar nulos en city/country/neutral
     df['city']    = df['city'].fillna('Unknown')
     df['country'] = df['country'].fillna('Unknown')
