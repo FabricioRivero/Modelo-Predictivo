@@ -50,6 +50,13 @@ NOMBRES_ESTANDAR = {
     'Costa de Marfil':'Ivory Coast',
     "Côte d'Ivoire":'Ivory Coast',"Cote d'Ivoire":'Ivory Coast',
     'RD del Congo':'DR Congo','Congo DR':'DR Congo',
+    'RD Congo':'DR Congo',                 # español
+    'Congo RD':'DR Congo',
+    'Comores':'Comoros',                   # francés → inglés
+    'Comoras':'Comoros',                   # español → inglés
+    'Níger':'Niger',                       # con tilde → sin tilde
+    'Emiratos Árabes Unidos':'United Arab Emirates',
+    'Emiratos Árabes':'United Arab Emirates',
     'Jordania':'Jordan','Baréin':'Bahrain','Bahréin':'Bahrain',
     'Omán':'Oman','Catar':'Qatar','Arabia Saudí':'Saudi Arabia',
     'Arabia Saudita':'Saudi Arabia','Arabia Saudí':'Saudi Arabia',
@@ -170,10 +177,19 @@ TORNEO_ESTANDAR = {
     'euro':                      'UEFA Euro',
     'copa america':              'Copa America',
     'copa americana':            'Copa America',
-    'copa africana de naciones': 'African Cup of Nations',
-    'afcon':                     'African Cup of Nations',
-    'liga de naciones':          'UEFA Nations League',
-    'nations league':            'UEFA Nations League',
+    'copa africana de naciones':        'African Cup of Nations',
+    'copa de africa de naciones':       'African Cup of Nations',
+    'copa de áfrica de naciones':       'African Cup of Nations',
+    'afcon':                            'African Cup of Nations',
+    'campeonato del mundo':             'FIFA World Cup qualification',
+    'campeonato africano de naciones':  'CHAN',
+    'liga de naciones':                 'UEFA Nations League',
+    'nations league':                   'UEFA Nations League',
+    'arab cup':                         'Arab Cup',
+    'copa arabe':                       'Arab Cup',
+    'copa árabe':                       'Arab Cup',
+    'gulf cup':                         'Gulf Cup',
+    'copa del golfo':                   'Gulf Cup',
 }
 
 def estandarizar_torneo(t):
@@ -189,12 +205,25 @@ def estandarizar_torneo(t):
 # PALABRAS PARA EXCLUIR NO-MAYORES MASCULINOS
 # ══════════════════════════════════════════════════════════════
 PALABRAS_EXCLUIR = [
+    # Sub-categorías por edad
     'U17','U20','U21','U23','U15','U16','U18','U19',
     'Sub-17','Sub-20','Sub-21','Sub-23',
+    # Femenino / Olímpico
     'Women','Femenino','Femenina','Female',
     'Olympic','Olympics',
+    # Clubes que se colaron
     'Lecce','Udinese','Metalist','Urartu','Zanzíbar',
     'B team','B-team','Reserva',
+    # TORNEOS AFRICANOS NO-ABSOLUTOS
+    # CHAN = solo jugadores de liga local, NO es selección mayor
+    'CHAN',
+    'African Nations Champ',
+    # Copas regionales africanas
+    'COSAFA','CECAFA','WAFU','UFOA','UNAF',
+    # Torneos asiáticos regionales
+    'EAFF','AFF Championship','SAFF',
+    # Torneos no oficiales FIFA
+    'Arab Cup','Gulf Cup','King Cup','Peace Cup',
 ]
 
 def cargar_fuentes():
