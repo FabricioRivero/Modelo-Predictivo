@@ -3,6 +3,7 @@
 # Output: D:\MODELO DE PREDICCION\Codigo\cuotas_hoy.csv
 
 import csv
+import os
 import re
 import time
 import random
@@ -12,7 +13,13 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-OUTPUT_FILE = r"D:\MODELO DE PREDICCION\Codigo\cuotas_hoy.csv"
+import sys as _sys
+_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Config'))
+try:
+    from config import CUOTAS_HOY_CSV as OUTPUT_FILE
+except Exception:
+    OUTPUT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Datos', 'internacional', 'cuotas_hoy.csv')
+
 DAYS_AHEAD  = 7
 LIST_URL    = "https://www.sportytrader.com/en/odds/football/"
 PROFILE_DIR = r"D:\MODELO DE PREDICCION\brave_profile_st"
@@ -309,10 +316,14 @@ def main():
         # Extraer datos
         js_data = extract_with_js(page)
         print(f"  {len(js_data)} bloques encontrados")
-        # Guardar HTML para inspeccionar
-        with open(r"D:\MODELO DE PREDICCION\Codigo\debug.html", "w", encoding="utf-8") as f:
-            f.write(page.content())
-        print("  HTML guardado en debug.html")
+        # Guardar HTML de debug (ruta dinámica, no crítico)
+        debug_path = os.path.join(os.path.dirname(OUTPUT_FILE), "debug.html")
+        try:
+            with open(debug_path, "w", encoding="utf-8") as f:
+                f.write(page.content())
+            print(f"  HTML guardado en debug.html")
+        except Exception:
+            pass  # debug no es crítico
 
         # Muestra debug de primeros 3
         if js_data:
