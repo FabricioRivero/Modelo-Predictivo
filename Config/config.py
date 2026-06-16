@@ -48,7 +48,7 @@ J1_MATCHES_CSV   = os.path.join(JLEAGUE_DIR, "J1_League_Matches_2022_2025.csv")
 # ══════════════════════════════════════════════════════════════
 # ARCHIVOS DE DATOS — INTERNACIONAL
 # ══════════════════════════════════════════════════════════════
-RESULTS_CSV          = os.path.join(INTL_DIR, "results.csv")
+RESULTS_CSV          = os.path.join(INTL_DIR, "base_maestra.csv")  # base consolidada (Kaggle+nuevo+patch)
 FORMER_NAMES_CSV     = os.path.join(INTL_DIR, "former_names.csv")
 GOALSCORERS_CSV      = os.path.join(INTL_DIR, "goalscorers.csv")
 SHOOTOUTS_CSV        = os.path.join(INTL_DIR, "shootouts.csv")
