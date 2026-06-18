@@ -44,6 +44,10 @@ from config import (
 )
 ensure_dirs()
 
+# ── Logging estructurado ──────────────────────────────────────
+from logger import get_logger, log_model_prediction, log_bet_decision, log_api_call
+logger = get_logger(__name__)
+
 # ══════════════════════════════════════════════════════════════
 # ── CONFIGURACIÓN ─────────────────────────────────────────────
 # ══════════════════════════════════════════════════════════════
