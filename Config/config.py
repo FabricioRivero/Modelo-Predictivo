@@ -109,7 +109,7 @@ FORM_MATCHES_INTL = 8         # últimos 8 partidos
 TRAIN_FROM_INTL   = 2010      # datos desde 2010
 
 # Umbrales value bet Internacional (calibrados con backtest: local +5.4%, visitante -12.3%)
-VT_HOME_INTL = 0.05   # local: umbral (ROI positivo histórico)
+VT_HOME_INTL = 0.03   # local: umbral bajado a 3% (backtest Mundial ROI +25.4% con >3%)
 VT_AWAY_INTL = 0.99   # visitante: DESACTIVADO (ROI -12.3%)
 FORM_MIN_HOME_INTL = 1.3
 FORM_MIN_AWAY_INTL = 1.0
