@@ -47,6 +47,8 @@ ensure_dirs()
 # ── Logging estructurado ──────────────────────────────────────
 from logger import get_logger, log_model_prediction, log_bet_decision, log_api_call
 logger = get_logger(__name__)
+# ── Tracker automático de apuestas ───────────────────────────
+from tracker_auto import auto_register_bet
 
 # ══════════════════════════════════════════════════════════════
 # ── CONFIGURACIÓN ─────────────────────────────────────────────
@@ -1657,14 +1659,21 @@ if __name__ == '__main__':
         if API_KEY_FOOTBALL and analyses == []:  # solo el primer partido
             pre_info = fetch_pre_match_info(fix['home_api'], fix['away_api'], API_KEY_FOOTBALL)
 
-        analyses.append({
+        # Guardar análisis para posible registro
+        analysis_data = {
             'fixture':   fix,
             'pred':      pred,
             'value':     value,
             'form_home': f_home,
             'form_away': f_away,
             'pre_info':  pre_info,
-        })
+        }
+        analyses.append(analysis_data)
+        
+        # ── REGISTRO AUTOMÁTICO EN TRACKER ─────────────────────
+        if any(v.get('has_value') or v.get('strong_value') for v in value.values()):
+            auto_register_bet(analysis_data, interactive=True, 
+                             default_stake=1.5, min_value=2.0)
 
         hora = fix['commence'].astimezone().strftime('%H:%M')
         neu  = " [NEUTRAL]" if fix.get('neutral') else ""
