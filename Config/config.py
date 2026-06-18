@@ -82,8 +82,11 @@ INTL_BACKTEST_CSV       = os.path.join(REPORTES_DIR, "backtest_intl_results.csv"
 # ══════════════════════════════════════════════════════════════
 # API KEYS
 # ══════════════════════════════════════════════════════════════
-API_KEY_ODDS     = "07fed81a038a0eb0b8c6c4abedcdcd35"   # The Odds API → cuotas Pinnacle
-API_KEY_FOOTBALL = "f7de0f5bd4e48491c6e02aefa322d67a"   # API-Football  → convocados/lesionados
+from dotenv import load_dotenv
+load_dotenv(os.path.join(REPO_ROOT, ".env"), override=True)
+
+API_KEY_ODDS     = os.getenv("API_KEY_ODDS")
+API_KEY_FOOTBALL = os.getenv("API_KEY_FOOTBALL")
 
 # ══════════════════════════════════════════════════════════════
 # PARÁMETROS DEL MODELO — J-LEAGUE
