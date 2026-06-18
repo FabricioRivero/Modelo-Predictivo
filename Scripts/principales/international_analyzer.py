@@ -940,6 +940,15 @@ INTL_SPORT_KEYS = [
     'soccer_concacaf_nations_league',
 ]
 
+# Sports a excluir explícitamente aunque pasen el filtro de nombre
+INTL_SPORT_EXCLUDE = [
+    'cricket',
+    'baseball',
+    'basketball',
+    'rugby',
+    'hockey',
+]
+
 def get_active_intl_sports(api_key):
     """Consulta qué sports internacionales tienen partidos activos ahora."""
     try:
@@ -953,9 +962,14 @@ def get_active_intl_sports(api_key):
             k = s['key']
             if not s.get('active', False):
                 continue
-            if any(x in k for x in ['world_cup','international','copa_america',
-                                      'european_championship','nations_league',
-                                      'concacaf','conmebol','uefa_euro']):
+            if any(excl in k for excl in INTL_SPORT_EXCLUDE):
+                continue
+            if k in INTL_SPORT_KEYS or any(x in k for x in [
+                    'world_cup', 'international_friendl',
+                    'copa_america', 'european_championship',
+                    'nations_league', 'concacaf_nations',
+                    'uefa_euro', 'african_cup', 'asian_cup',
+                    'gold_cup', 'copa_oro']):
                 intl_keys.append(k)
         return intl_keys
     except Exception as e:
@@ -1588,6 +1602,12 @@ if __name__ == '__main__':
         # Asegurar timezone UTC
         if hasattr(commence, 'tzinfo') and commence.tzinfo is None:
             commence = commence.replace(tzinfo=timezone.utc)
+
+        # --- AQUÍ ESTÁ EL FILTRO NUEVO ---
+        # Filtrar equipos que no son selecciones conocidas por el modelo
+        if h_name not in params or a_name not in params:
+            continue
+        # ---------------------------------
 
         # Detectar sede neutral: Mundial y partidos en USA son neutrales
         neutral = True  # internacionales casi siempre son neutrales
