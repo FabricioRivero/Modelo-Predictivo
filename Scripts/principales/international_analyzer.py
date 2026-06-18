@@ -49,7 +49,8 @@ from logger import get_logger, log_model_prediction, log_bet_decision, log_api_c
 logger = get_logger(__name__)
 # ── Tracker automático de apuestas ───────────────────────────
 from tracker_auto import auto_register_bet
-
+# ── Cuotas O/U 2.5 + BTTS ────────────────────────────────────
+from cuotas_ou_integration import load_cuotas_ou, calc_value_ou_btts, format_ou_btts_value
 # ══════════════════════════════════════════════════════════════
 # ── CONFIGURACIÓN ─────────────────────────────────────────────
 # ══════════════════════════════════════════════════════════════
@@ -1549,9 +1550,9 @@ if __name__ == '__main__':
     def map_scraper_name(n):
         return SCRAPER_NAME_MAP.get(n, n)
 
-    cuotas_csv = CUOTAS_HOY_CSV
-    cuotas_dict = {}  # (home, away) → {home, draw, away, source}
-    now_utc = datetime.now(timezone.utc)
+    # Cargar cuotas extendidas (1X2 + O/U + BTTS)
+    from cuotas_ou_integration import load_cuotas_ou
+    cuotas_dict = load_cuotas_ou(cuotas_csv)
 
     if os.path.exists(cuotas_csv):
         try:
@@ -1653,6 +1654,31 @@ if __name__ == '__main__':
         value  = calc_value(pred, fix['odds'],
                             form_home=f_home.get('pts_pg'),
                             form_away=f_away.get('pts_pg'))
+        # ── VALUE O/U 2.5 Y BTTS ─────────────────────────────────
+        cuota_ou = cuotas_dict.get((h_name.lower(), a_name.lower()))
+        if cuota_ou and (cuota_ou.get('over25') or cuota_ou.get('btts_yes')):
+            value_ou_btts = calc_value_ou_btts(pred, cuota_ou)
+            analysis_data['value_ou_btts'] = value_ou_btts
+            
+            # Mostrar en consola
+            print(format_ou_btts_value(value_ou_btts))
+            
+            # Agregar al tracker si hay value
+            if any(v.get('has_value') for v in value_ou_btts.values()):
+                from tracker_auto import auto_register_bet
+                auto_register_bet({
+                    'fixture': fix,
+                    'pred': pred,
+                    'value': {
+                        'over25': value_ou_btts.get('over25', {}),
+                        'under25': value_ou_btts.get('under25', {}),
+                        'btts_yes': value_ou_btts.get('btts_yes', {}),
+                        'btts_no': value_ou_btts.get('btts_no', {}),
+                    },
+                    'form_home': f_home,
+                    'form_away': f_away,
+                    'pre_info': pre_info,
+                }, interactive=True)
 
     # Info pre-partido de API-Football (solo el primer partido para no gastar requests)
         pre_info = None
